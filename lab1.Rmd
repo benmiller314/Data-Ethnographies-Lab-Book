@@ -17,13 +17,14 @@ editor_options:
 
 Welcome to the Data Ethnographies Lab Book! Together, the nine notebooks in this Lab Book will walk you through a research project contextualizing, exploring, and visualizing a publicly-accessible dataset. Each notebook will demonstrate how to explore a dataset in R, along with modes of critical reflection that can help you evaluate the collective values and commitments that shape data and the stories it conveys. Labs 2-3 will involve research planning, data discovery, and data background research. Labs 4-7 will involve data exploration, analysis, and critique. Finally, labs 8 and 9 will involve summarizing findings, documenting knowledge gaps, and presenting uncertainty. 
 
-As we move through this first notebook, we will begin to get acquainted with R Markdown - the format in which these notebooks are written -, the themes of the notebooks, and the statistical programming language R. If you are here because you are looking to become a whiz at statistical analysis or data science, you should know that this is not the primary goal of these notebooks. Instead, the notebooks are designed to encourage you to think critically about a data practice - recognizing the human forces that are always involved in shaping data, responsibly documenting uncertainties in data, and communicating ways that data can both produce and delimit insight. While analyzing data in appropriate ways are important parts of each notebook, the reflections that you will write about the analyses you produce are perhaps even more important. 
+As we move through this first notebook, we will begin to get acquainted with R Markdown - the format in which these notebooks are written - as well as the themes of the notebooks and the statistical programming language R. If you are here because you are looking to become a whiz at statistical analysis or data science, you should know that *this is not the primary goal of these notebooks.* Instead, the notebooks are designed to encourage you to **think critically about a data practice** - recognizing the human forces that are always involved in shaping data, responsibly documenting uncertainties in data, and communicating ways that data can both produce and delimit insight. While analyzing data in appropriate ways are important parts of each notebook, the reflections that you will write about the analyses you produce are perhaps even more important. 
 
 ## Introduction to RStudio
 
 As we work through these notebooks, we will be learning how to code in R inside the RStudio interface. You may be wondering the difference between the two. 
 
 **R** is a statistical computing language that allows you to:
+
 * Store data in a variety of formats
 * Perform calculations on data and variables, 
 * Build functions and applications, and 
@@ -35,13 +36,21 @@ Before we continue, please watch this 8-minute video introducing you to the RStu
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/TJmNvfhLCoI" frameborder="0" allowfullscreen></iframe>
 
+### Get into RStudio
+
+If you've been viewing this file in a browser or text editor up to this point, please re-open it in RStudio. As the video demonstrated, this will allow you to execute the code, sometimes modifying it first. (If you don't yet have it, here's the link to [download RStudio](https://www.rstudio.com/products/rstudio/download/). The free RStudio Desktop version should be fine! Note that there are two steps: you must download and install the R application before you can install the RStudio IDE.)
+
+The video should also have shown you how to open and preview .Rmd files, and to adjust whether the preview opens in a pane or a separate window. To adjust where the Viewer or Source panes appear, you can use RStudio's menu: View > Panes > Pane Layout. You'll have to restart when you adjust the layout, but your new layout will last from session to session from that point on.
+
 ### Installing Packages
 
 The R community has developed a series of *packages* or collections of functions that we can use when coding in R. We will be leveraging a series of packages known as the Tidyverse - designed to help users clean, transform, analyze, and visualize data. You will need to install the following packages in your R environment. To do so, you should copy and paste the following line into your Console. If you don't know where you console is, be sure to rewatch the RStudio YouTube video above. 
 
-install.packages(c("tidyverse", "lubridate", "rmarkdown", "leaflet"))
 
-Once packages are installed, to load the package, we call the function *library()*, which let's R know that we will be referencing the functions encoded for this package in our code. You can think of an R package like a book, stored in a computer library. When you call, library(), it is as if we are checking that book out of the library so that we may reference its functions in our code. Run the code below after installing the packages above to ensure that everything installed properly. Refer to the video above if you do not know how to run the code. 
+> install.packages(c("tidyverse", "lubridate", "rmarkdown", "leaflet"))
+
+
+Once packages are installed, to load the package, we call the function `library()`, which lets R know that we will be referencing the functions encoded for this package in our code. You can think of an R package like a book, stored in a computer library. When you call, library(), it is as if we are checking that book out of the library so that we may reference its functions in our code. Run the code below after installing the packages above to ensure that everything installed properly. Refer to the video above if you do not know how to run the code. 
 
 ```{r}
 library(tidyverse)
@@ -52,7 +61,7 @@ library(leaflet)
 
 ## Introduction to R Markdown
 
-If you are viewing this document in RStudio, you'll notice a series of characters (like hashtags and asterisks) being used to demarcate headers, code chunks, italicized and emphasized words, bullets, numbering, figures, and tables. These characters are encoding how the document should be presented when we publish it. These symbols are part of R Markdown - an authoring framework for R that enables us to style documents and embed code. When we publish this document, you see the text following or in between these symbols formatted in a standardized way. If you would like to see how this document will appear once it's published, click the 'Preview' button in the navigation bar above. This will preview the published document in the Viewer to the right. 
+If you are viewing this document in the RStudio source editor, you'll notice a series of characters (like hashtags and asterisks) being used to demarcate headers, code chunks, italicized and emphasized words, bullets, numbering, figures, and tables. These characters are encoding how the document should be presented when we publish it. These symbols are part of Markdown - an authoring framework that enables us to style documents and embed code. When we publish this document, you see the text following or in between these symbols formatted in a standardized way. If you would like to see how this document will appear once it's published, click the 'Preview' button in the navigation bar above. This will preview the published document in the Viewer pane. 
 
 Here are some components of R Markdown that you may see throughout the notebooks. 
 
@@ -61,8 +70,7 @@ Here are some components of R Markdown that you may see throughout the notebooks
 ```{r eval=FALSE}
 This grey box between ```{r} and ``` is a code chunk. 
 
-Typically, when we put code in this chunk and then publish our R Markdown document, 
-the code written here will be run and output on the screen. 
+Typically, when we put code in this chunk and then publish our R Markdown document, the code written here will be run and output on the screen. 
 
 However, by placing eval=FALSE in the brackets, we tell R not to evaluate the code. 
 
@@ -104,7 +112,7 @@ You can number content like this:
 2. Point 2
 
 
-For more information about formatting documents in R Markdown see [this](https://rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf) cheatsheet. Note how I created a hyperlink here!
+For more information about formatting documents see [this R Markdown  cheatsheet](https://rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf). Note how I created a hyperlink here with brackets and parentheses!
 
 ## Lab Book Themes
 
