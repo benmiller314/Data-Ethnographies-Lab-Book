@@ -219,14 +219,19 @@ Variables are used to store data in R. We use "<-" to assign a variable. The tex
 ```{r}
 #Run this code chunk. 
 
-class_name <- "Data Sense and Exploration"
-class_dept <- "STS"
-class_number <- "115"
-class_size <- 33
+class_name <- "Writing with Data"
+class_dept <- "ENGCMP"
+class_number <- "0521"
+class_size <- 19
 
-sts_majors <- 20
-stats_majors <- 8
-other <- 5
+firstyears <- 0
+sophomores <- 6
+juniors <- 6
+seniors <- 7
+
+dsas <- 15
+swanson <- 3
+business <- 1
 ```
 
 Every object in R has a particular *class*, which designates the variable's "type" and how functions can be applied to it. We can check the class of a variable by calling it in "class()".
@@ -254,9 +259,9 @@ Notice how we re-assigned the new subtracted value to class_size above.
 We can also perform calculations on variables, such as addition, subtraction, multiplication, and division. Checking whether variables are greater than, less than, or equal to each other will return TRUE or FALSE. 
 
 ```{r}
-sts_majors + stats_majors
+juniors + seniors
 
-sts_majors > stats_majors
+dsas > swanson
 ```
 
 We can also perform operations on strings - concatenating them with the *paste* function. For instance, we can paste the class_dept string with the class_number string to create a class code. When we do this, we need to tell R what characters should separate the strings. We will review this again later in the quarter. 
@@ -268,30 +273,37 @@ class_code
 
 ### Vectors
 
-A vector is a set of values (organized like a list) that are all of the same type. A vector can be of type integer, double, characters, logical, for example. We create a vector by placing a set of values in "c(___)". Here c stands for "combine" - indicating that we are combining values. 
+A vector is a set of values (organized like a list) that are all of the same type. A vector can be of type integer, double, characters, logical, for example. We create a vector by placing a set of values in "c(___)". You can remember this if you think of c as standing for "combine" - indicating that we are combining values. 
 
 ```{r}
-birth_months <- c(4, 7, 12, 3, 1)
-first_letter_name <- c("A","B","C","D","E")
+birth_months <- c(4, 7, 12, 3, 1, 7, 2, 6, 5, 2, 8, 10, 8, 3, 4, 4, 2, 6, 11)
+first_letter_name <- c("A","E","C","D","E")
 time_on_phone <- c(34, 90, 2, 6, NA)
 ```
 
-We can measure the length of a vector by calling the function *length*. This counts how many values are listed in the vector. 
+(Technically, c stands for "concatenate"; unlike when combining sets in math, `c()` will preserve the order and allow duplication.)
 
 ```{r}
-length(birth_months)
+print(birth_months)
+print(first_letter_name)
 ```
 
-We can also extract values from specific positions in the vector by referencing the index in brackets. So let's say I want to extract the third value in the vector. 
+You can also use `c()` to combine vectors. Note that, if the result of an operation is a value (rather than, say, assigning a value to a variable), R will print it by default.
 
 ```{r}
-birth_months[3]
+c(birth_months, birth_months)
+```
+
+When R prints a vector, it will also indicate in the left-hand margin the position within the vector at which that line starts. We can extract values from specific positions in the vector by referencing the index in square brackets. So let's say I want to extract the third value in the vector. 
+
+```{r}
+first_letter_name[3]
 ```
 
 To extract all values except the value in a particular position, we will use the "-" sign before the index in brackets. So let's say I want to extract all values except the third in the vector.
 
 ```{r}
-birth_months[-3]
+first_letter_name[-3]
 ```
 
 We can also extract a range of values from specific positions in the vector by referencing that range of indexes in brackets separated by a ":". So let's say I want to extract the first through the third value in the vector.
@@ -306,9 +318,19 @@ Finally, to extract values from a non-sequential combination of specific positio
 first_letter_name[c(1,3,5)]
 ```
 
+
+We can measure the length of a vector by calling the function `length()`. This counts how many values are listed in the vector. 
+
+```{r}
+length(birth_months)
+```
+
+
 We can perform operations on vectors - finding their max, their min, their sum, their average, for example. However, we may get an error if we have any empty values in the dataset. To avoid this, we need to communicate to R to remove NA values. 
 
 ```{r}
+max(birth_months)
+
 max(time_on_phone)
 min(time_on_phone)
 sum(time_on_phone)
@@ -325,13 +347,14 @@ mean(time_on_phone, na.rm=TRUE)
 We won't be using matrices in these notebooks. However, knowing this data type will help you understand its differences from the data types we will use. Let's create a second numeric vector. 
 
 ```{r}
-birth_months2 <- c(11, 12, 3, 4, 4)
+birth_months1 <- birth_months[1:5]
+birth_months2 <- birth_months[6:10]
 ```
 
 By binding this together with birth_months, we create a matrix - or a 2-dimensional collection of elements of all the same type.
 
 ```{r}
-birth_months_matrix <- rbind(birth_months, birth_months2)
+birth_months_matrix <- rbind(birth_months1, birth_months2)
 birth_months_matrix
 ```
 
@@ -342,7 +365,7 @@ nrow(birth_months_matrix)
 ncol(birth_months_matrix)
 ```
 
-We can also extract values from specific positions in the vector by referencing the row position and the column position of the number in brackets. The format for doing so is [row, column] So let's say that we want to extract the value in the second row, third column.
+We can also extract values from specific positions in the vector by referencing the row position and the column position of the number in brackets. The format for doing so is [row, column]. So let's say that we want to extract the value in the second row, third column.
 
 ```{r}
 birth_months_matrix[2,3]
@@ -360,13 +383,22 @@ And to extract the entire third column, we would leave the row position blank. T
 birth_months_matrix[,3]
 ```
 
+For analysis, though, it's risky to use code that references data by row or column number, because if the source data changes how things are ordered, you can get inaccurate results without realizing it. Better to use row or column names, when they're available.
+
+```{r}
+birth_months_matrix["birth_months2", ]
+```
+
 ### Lists
 
 I will only briefly go over *lists* because, for the most part, we will not be using them in these notebooks. *Lists* are collections of objects in R. For instance, you can have a collection of numeric vectors, character vectors, logical vectors, matrices, and other lists. You can assign names to the objects in lists so that you can more easily reference them. For instance, below I assign the name x, y, and z to the three objects respectively. Once a name has been assigned to the object, you can reference it by listing the name of the list followed by the *$* followed by the name of the object. 
 
 ```{r}
-first_list <- list(x = first_letter_name, y = time_on_phone, z = birth_months)
+first_list <- list(x = first_letter_name, 
+                   y = time_on_phone, 
+                   z = birth_months)
 
+first_list$x
 first_list$x[2:3]
 first_list$y[c(1,4)]
 first_list$z[2]
@@ -386,7 +418,7 @@ Mark | 14 | 8 | 120
 
 Each row is an observation - in this case a person - and each column is a variable describing something about a person. Note how each column is also a vector. The Name column is a character vector of names. The Age column is a numeric vector of ages.
 
-Let's go head and create this vector below:
+Let's go head and create this data frame below:
 
 ```{r}
 df <- data.frame(name = c("Sally", "Julie", "Mike"), 
@@ -395,23 +427,7 @@ df <- data.frame(name = c("Sally", "Julie", "Mike"),
                  time_on_phone = c(42, 98, 120))
 ```
 
-When working with very large datasets, we need tools to help us get a sense of the dataset without having to load the entire data frame. For instance, we can view the first 6 rows of the dataset by calling *head()*.
-
-```{r}
-head(df)
-```
-
-*dim()* will tell us the dimensions of the data frame - i.e. the number of rows and the number of columns in the data frame. 
-
-```{r}
-dim(df)
-```
-
-"str()" provides a great deal of information about the observations in the data frame, including the number of variables, the number of observations, the variable names, their data types, and a list of observations.
-
-```{r}
-str(df)
-```
+Note that the naming procedure is very similar to lists, but data.frames are more constrained: they require that each item be of equal length.
 
 Just like as we had done with matrices, we can extract particular rows and columns in a data frame by referring to their indexes in brackets. 
 
@@ -419,7 +435,7 @@ Just like as we had done with matrices, we can extract particular rows and colum
 df[2,4]
 ```
 
-We often don't want to have the count the index of each column in order to refer to a particular variable in our dataframe. Instead, we can refer to the variable (column) name using the same "$" notation that we discussed above. For instance, I could see the values in the birth_month column by calling:
+We often don't want to have the count the index of each column in order to refer to a particular variable in our dataframe. Instead, we can refer to the variable (column) name using the same "$" notation that we discussed above for lists. For instance, I could see the values in the birth_month column by calling:
 
 ```{r}
 df$birth_month
@@ -436,6 +452,26 @@ What if you don't know what the column names are? To see a list of column names,
 ```{r}
 colnames(df)
 ```
-Finally, on the top right hand side of your RStudio screen, you will see a tab called Environment. If you click on that tab, you should see all of the data that you have stored in variables. You can check column names here. 
 
 
+Now, this is a much smaller data frame than you'll usually be consulting for analysis. When working with very large datasets, we need tools to help us get a sense of the dataset without having to load the entire data frame. For instance, we can view the first 6 rows of the dataset by calling `head()`:
+
+```{r}
+head(df)
+```
+
+`dim()` will tell us the dimensions of the data frame - i.e. the number of rows and the number of columns in the data frame. 
+
+```{r}
+dim(df)
+```
+
+`str()` provides a great deal of information about the observations in the data frame, including the number of variables, the number of observations, the variable names, their data types, and a list of observations.
+
+```{r}
+str(df)
+```
+
+In addition, RStudio should show you a tab called Environment. (Not seeing it? Try View > Panes > Pane Layout...) If you click on that tab, you should see all of the data that you have stored in variables. You can check column names, structure, and even preview data frames there. 
+
+We'll get more into other ways to filter and search within observations in future labs.
