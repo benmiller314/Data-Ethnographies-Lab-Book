@@ -151,19 +151,19 @@ Further, as we will consider again and again throughout the notebooks, the case 
 
 ## Ethnography
 
-Every discipline has a set of methods that they leverage to advance research in their fields. Disciplinary research methods refer to the techniques and practices a particular discipline engages in order to gather data, analyze evidence, and deepen knowledge on a particular topic. For chemists, such methods might include experimentation and observation. For psychologists, such methods might include case studies and neuro-imaging. I'm an anthropologist, and in anthropology, one of our key methods is known as ethnography. 
+Every discipline has a set of methods that they leverage to advance research in their fields. Disciplinary research methods refer to the techniques and practices a particular discipline engages in order to gather data, analyze evidence, and deepen knowledge on a particular topic. For chemists, such methods might include experimentation and observation. For psychologists, such methods might include case studies and neuro-imaging. One key method from anthropology, which gets picked up in my own field of writing studies, is known as ethnography. 
 
 Ethnography is the practice of studying people and cultures. To do so, ethnographers may observe people as they interact in, move through, or make decisions within a particular space. Alternatively, they may interview people, eliciting narratives about what they find important, how they think about the world, and how their personal backgrounds have motivated their current commitments. Importantly, ethnography is often immersive; ethnographers deeply engage in a particular space, gathering as much detail as they can (and often more detail than they know what to do with) in order to later analyze and relay how cultural forces are operating within it.
 
-In this Lab Book, we are going to conduct an ethnography of a dataset. You may be asking - if ethnography is about studying people, why are we using it to study a dataset? The reason for this is that, in these notebooks, we are taking as a given that all data has in certain ways been shaped by human assumptions, judgments, and politics. Let me provide an example:
+In this Lab Book, we are going to conduct an ethnography of a dataset. You may be asking -- if ethnography is about studying people, why are we using it to study a dataset? The reason for this is that, in these notebooks, we are taking as a given that **all data has in certain ways been shaped by human assumptions, judgments, and politics.** Here's an example from Lindsay Poirier, whose [materials](https://jitp.commons.gc.cuny.edu/ethnographies-of-datasets-teaching-critical-data-analysis-through-r-notebooks/) I've adapted in developing this course:
 
-The last time I ran this course, one student spent the quarter studying a dataset documenting the perimeters of each documented wildfire in California since 1900. Each row in the dataset documented a fire name, the date the first alarm was sounded, the date it was contained, and the acreage that it burned. Each fire was also classified with a standardized list of fire "causes."  This list included causes like "Campfire," "Arson," and "Lightning." The student created visualizations of the number of documented fires in California that had been the result of each cause. In doing so, she found something odd - the cause of the fewest fires in California were collectively categorized as "Illegal Alien Campfires." 
+The last time I ran this course [Poirier writes], one student spent the quarter studying a dataset documenting the perimeters of each documented wildfire in California since 1900. Each row in the dataset documented a fire name, the date the first alarm was sounded, the date it was contained, and the acreage that it burned. Each fire was also classified with a standardized list of fire "causes."  This list included causes like "Campfire," "Arson," and "Lightning." The student created visualizations of the number of documented fires in California that had been the result of each cause. In doing so, she found something odd - the cause of the fewest fires in California were collectively categorized as "Illegal Alien Campfires." 
 
 ```{r fig.height=3, fig.width=5}
-fires <- read.csv("https://raw.githubusercontent.com/lindsaypoirier/STS-115/master/datasets/Fires_100.csv", stringsAsFactors = FALSE)
+fires <- read.csv("https://github.com/benmiller314/Data-Ethnographies-Lab-Book/blob/master/datasets/Fires_100.csv?raw=true", stringsAsFactors = FALSE)
 fires %>% 
   ggplot(aes(x = reorder(CAUSE,CAUSE,
-                     function(x)-length(x)), fill = CAUSE)) +
+                     function(x) length(x)), fill = CAUSE)) +
   geom_bar() +
   labs(title = "Count of CalFIRE-documented Wildfires since 1878 by Cause", x = "Cause", y = "Count of Wildfires") + 
   theme_minimal() +
@@ -172,21 +172,21 @@ fires %>%
   coord_flip() 
 ```
 
-We immediately flagged this. Why did this classification exist as its own separate category? Why was it not enough to classify these fires as "Campfires" - another cause code in the dataset?  This communicated to us that at a particular point in time, a governing body in California deemed it appropriate to count illegal alien campfires fires separately - producing a set a numbers and values that tell a different story than the one that would have been produced had all "campfires" been lumped together.  In this case, we needed to look beyond the numbers reported in order to make sense of what we were seeing in her analysis - taking into consideration how certain politics were at work in shaping what we were seeing. This opened up even more questions. What counts as a wildfire anyways? Who gets to decide?
+Why did this classification exist as its own separate category? Why was it not enough to classify these fires as "Campfires" - another cause code in the dataset?  This communicates that at a particular point in time, a governing body in California deemed it appropriate to count illegal alien campfires fires separately - producing a set a numbers and values that tell a different story than the one that would have been produced had all "campfires" been lumped together.  In this case, we need to look beyond the numbers reported in order to make sense of what we are seeing in her analysis - taking into consideration how certain politics were at work in shaping what we were seeing. This opened up even more questions. What counts as a wildfire anyways? Who gets to decide?
 
-When we ethnographically analyze a dataset - immersing ourselves in it to investigate the cultural forces at play - we can pull such narratives to the fore. Accordingly, in these notebooks, we are not only going to consider what quantitative insights we can extrapolate from data. We are also going to analyze the data for what it tells us about culture - how people perceive difference and belonging, how people represent complex ideas numerically, and how they prioritize certain forms of knowledge over others.
+When we ethnographically analyze a dataset -- immersing ourselves in it to investigate the cultural forces at play -- we can pull such narratives to the fore. Accordingly, in these notebooks, we are not only going to consider what quantitative insights we can extrapolate from data. We are also going to analyze the data for what it tells us about culture -- how people perceive difference and belonging, how people represent complex ideas numerically, and how they prioritize certain forms of knowledge over others.
 
 ## A Note on the Word Bias
 
-Some of you may be thinking - if there are human perspectives shaping data, doesn't that make it biased? 
+Some of you may be thinking -- if there are human perspectives shaping data, doesn't that make it biased? 
 
 The Oxford English Dictionary defines bias as:
 
 > "An inclination, leaning, tendency, bent; a preponderating disposition or propensity; predisposition towards; predilection; prejudice." 
 
-All too often I hear people talk about the significance of "eliminating bias" from data or "avoiding biases" in data analysis. This is firstly impossible. Numbers do not emerge out of nowhere but emerge from human perspectives (with inclinations, leanings, tendencies, and bents) deciding what to count and how to count it. I challenge any one of you to approach me with a number that has not in some way been generated by a human (hint: this is a trick - if you, as a human, come to me with a number, you've already failed the challenge.) You can never remove that human element from data; there will always be bias. If you think about it, even the fervent commitment to remove bias from data is a bias! 
+All too often I hear people talk about the significance of "eliminating bias" from data or "avoiding biases" in data analysis. This is, to be frank, impossible. Numbers do not emerge out of nowhere but emerge from human perspectives (with inclinations, leanings, tendencies, and bents) deciding what to count and how to count it. I challenge any one of you to approach me with a number that has not in some way been generated by a human (hint: this is a trick -- if you, as a human, come to me with a number, you've already failed the challenge.) You can never remove that human element from data; there will always be bias. If you think about it, even the fervent commitment to remove bias from data is a particular preponderating disposition -- in other words, a bias! 
 
-Secondly, suggesting the possibility that data can be neutral can actually exacerbate certain kinds of social injustices. When we suggest that it is possible for numbers to speak for themselves, we tend to ignore all of the ways that data can be weaponized against groups of people. We are seeing this play out constantly in the news today. So-called "unbiased" algorithms for predicting where crime will happen turn into tools of surveillance for poor and racially diverse communities:
+Secondly, suggesting that data can be neutral can actually exacerbate certain kinds of social injustices. When we assert that it is possible for numbers to speak for themselves, we tend to ignore all of the ways that data can be weaponized against groups of people. We are seeing this play out constantly in the news today. So-called "unbiased" algorithms for predicting where crime will happen turn into tools of surveillance for poor and racially diverse communities, because the models can only train on past data, and past crime reports are not evenly distributed:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/ZMsSc_utZ40" frameborder="0" allowfullscreen></iframe>
 
@@ -194,17 +194,19 @@ So-called "unbiased" algorithms for screening resumes turn out to favor men over
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/JOzQjT-hJ8k" frameborder="0" allowfullscreen></iframe>
 
-In this sense, falsely presenting a possibility of eliminating bias gives numbers too much rhetorical power, making it much harder to critique the injustices they propagate.
+Falsely presenting data-driven approaches as eliminating bias gives numbers too much rhetorical power, making it much harder to critique the injustices they propagate.
 
-This is not to say that we shouldn't critique data representations and combat data practices that propagate inequality or harm certain communities; we absolutely should. However, in a world where this is playing out, I would much prefer to *know* the politics and perspectives of the individuals collecting data and producing data analyses than to pretend they don't exist. Then I can decide for myself whether I find their work trustworthy. We need ethical and politically responsible human data stewards - not processes that pretend to be able to strip data of its humanness. I hope you see these notebooks as an opportunity to develop some of these skills. Throughout our work, we will take biased data as a given and figure out how to move from there. 
+But again, to say that algorithms aren't neutral doesn't mean they're inherently evil. In a world where this is playing out, I would much prefer to *know* the politics and perspectives of the individuals collecting data and producing data analyses than to pretend they don't exist. Only then can we critique data representations and combat data practices that propagate inequality or harm certain communities; only with that information can we decide whether we find their work trustworthy, and in what ways. Rather than processes that pretend to be able to strip data of its humanness, we need human data stewards who can be ethical and politically responsible, who can continually strive to improve and to reflect on where they are in the process of improvement. 
+
+I hope you see these notebooks as an opportunity to develop some of these skills of critique, assessment, and responsible reflection. Throughout our work, we will take biased data as a given and figure out how to move from there. 
 
 With this in mind, I have a recommendation for how you think about the term 'bias' in these notebooks. Any time you feel compelled to use any version of the word 'bias', I encourage you to highlight it and then outline three things: 
 
-1. What kind of bias are you referring to? 
+1. What kind of bias are you referring to?
 2. Who propagates that bias?
 3. What are the consequences of that bias?
 
-You may find that it will take some practice to do this. The word bias has become so ingrained in popular lexicon that we can sometimes forget why we should pay attention to or care about it in the first place. These notebooks are designed to get you to think more critically about when, why, and how biases in data matter and to push beyond seeing them as a problem with data in and of themselves.
+You may find that it will take some practice to do this. The word bias has become so ingrained in popular lexicon that we can sometimes forget why we should pay attention to or care about it in the first place. These notebooks are designed to get you to think more critically about when, why, and how biases in data matter and to push beyond seeing their mere presence as a problem with data in and of themselves.
 
 ## Introduction to R
 
