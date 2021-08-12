@@ -21,9 +21,11 @@ library(tidyverse)
 
 ## Instructions and Overview
 
-This week you are going to do some background research on the dataset that you will be working with throughout the project - assessing how the data you plan to analyze get produced, who produced them, what they are designed to represent (and also what they might ignore), and what socio-political contexts might affect their scope.  
+This week you are going to do some background research on the dataset that you will be working with throughout the project -- assessing how the data you plan to analyze get produced, who produced them, what they are designed to represent (and also what they might ignore), and what socio-political contexts might affect their scope.  
 
 As you respond to these questions, you should be sure to examine the data documentation, the web source where you retrieved the data, the website of the organization that collected or published the data, and any laws/press releases/news articles that reference the data. **All responses should be in complete sentences, in your own words, and be sure to cite all sources.** 
+
+Some questions may be difficult or even impossible to answer, but don't give up too easily: if the information isn't on the same site as the data itself, use your search and source-evaluation skills to look for answers in trustworthy news sources.
 
 
 ## Data Context and Historical Background

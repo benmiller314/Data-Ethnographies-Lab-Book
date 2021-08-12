@@ -11,6 +11,7 @@ output:
     toc_depth: '3'
 editor_options:
   chunk_output_type: inline
+ben_notes: "Consider splitting this into more than one lab, some in class and some at home; consider also saving a fast version that just loads and cleans the dataset without need for interaction"
 ---
 
 ## Instructions and Overview
@@ -30,6 +31,7 @@ Run the following code to load the libraries for this week.
 
 library(tidyverse)
 library(lubridate)
+library(jsonlite)
 ```
 
 ## Data Import
@@ -43,30 +45,65 @@ A final option is to download the data to your local machine and store it in the
 
 For our example datasets:
 
-* The DHS has made the hospitals dataset available for download on the HIFLD site.
-* The New York Times team has made the Covid-19 cases dataset available in their own GitHub repo. I include the link to that data below.
-* The Center for Medicaid and Medicare Services has made the In-Patient Medicare Provider Utilization adn Paymnent data available for download on their open data portal, run by Socrata.
+* The New York Times team has made the [Covid-19 cases dataset](https://github.com/nytimes/covid-19-data) available in their own GitHub repo. 
+* The Department of Homeland Security has made the [hospitals dataset](https://hifld-geoplatform.opendata.arcgis.com/datasets/geoplatform::hospitals/about) available for download on the HIFLD site.
+* The Center for Medicaid and Medicare Services has made the [In-Patient Medicare Provider Utilization and Payment (IPPS)](https://www.cms.gov/research-statistics-data-systems/medicare-provider-utilization-and-payment-data/medicare-provider-utilization-and-payment-data-inpatient/inpatient-charge-data-fy-2018) data available for download on their open data portal, run by Socrata.
 
-I can import all of these datasets into RStudio by reading these files in as a CSV, using the function **read.csv("[URL_OR_PATH_TO_DATE_FILE]")**. When we read this data file into R, it will import as a data frame (reference lab 1 if you do not know what a data frame is). We will store that data frame in a variable using **<-** so that we may reference the dataset throughout the lab.
+We'll import these datasets into RStudio by locating the data "endpoint" on each site: essentially, the downloadable data itself, rather than a visualization or summary that many open data sources will show you first. Depending on the format each site provides, we'll be reading these files in as a CSV, using the function **read.csv("[URL_OR_PATH_TO_DATE_FILE]")** (part of base R) or as a JSON object, using the function **fromJSON("[URL_OR_PATH_TO_DATE_FILE]")** (from the package 'jsonlite'). When we read the data file into R, it will import as a data frame (reference lab 1 if you do not know what a data frame is). We will store that data frame in a variable using `<-` so that we can reference the dataset throughout the lab.
 
-> If you want to know why we are setting stringsAsFactors to FALSE ...it's a long story, which [this blog](https://simplystatistics.org/2015/07/24/stringsasfactors-an-unauthorized-biography/) tells much better than I can. 
+Run the code chunks below to import the example datasets. Go one line at a time to see how it works -- and if R doesn't show anything, e.g. for `head()`, try copying and pasting that line into the console. 
 
 ```{r}
-#Run this code chunk to import our example datasets.
 
-hospitals <- read.csv("https://opendata.arcgis.com/datasets/6ac5e325468c4cb9b905f1728d6fbf0f_0.csv", stringsAsFactors = FALSE)
-
-ipps <- read.csv("https://data.cms.gov/api/views/tcsp-6e99/rows.csv?$limit=200000", stringsAsFactors = FALSE)
-#Notice how in the link above, I've included $limit=200000? This is because by default this Socrata portal only provides access to 100000 rows of data via API. After checking the number of rows in this dataset on Socrata (196,325), I checked the API docs to see how to increase the number of rows that could be accessed via the API and learned that I could include $limit=[NUMBER_OF_ROWS] at the end of the API Endpoint URL to increase the limit.
-
+##### Set 1: NY Times COVID-19 cases
 cases <- read.csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv", stringsAsFactors = FALSE)
+str(cases)
+head(cases)
 
+# Pretty straightforward! If you want to know what stringsAsFactors means, see https://simplystatistics.org/2015/07/24/stringsasfactors-an-unauthorized-biography/. The default value changed from TRUE to FALSE with R 4.0.0 in April 2020, but there's no harm in being explicit.
 ```
 
 ```{r}
-#Uncomment the line below and replace df with a variable name to describe your dataset and [URL_OR_PATH_TO_DATE_FILE] with the URL to your dataset or the local path to your dataset.  Be sure to remove the brackets but to keep the quotation marks. 
+##### Set 2: hospitals
+hospitals <- fromJSON("https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/Hospitals_1/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=json")
+str(hospitals)
 
-#df <- read.csv("[URL_OR_PATH_TO_DATE_FILE]", stringsAsFactors = FALSE)
+# Using str() to find the structure of the values received, we can see that `hospitals` is a list that includes both metadata and 'features' (the info on specific hospitals). We can use $ notation to extract the parts we need, or bind them to a convenience variable.
+
+hospitals_data <- hospitals$features$attributes
+head(hospitals_data)
+```
+
+```{r}
+##### Set 3: IPPS
+ipps <- fromJSON("https://data.cms.gov/data-api/v1/dataset/3b383d0c-44a0-4036-af82-bbf3e40279a2/data")
+str(ipps) # 1000 observations
+
+
+# Here the value received is data, but it stops at 1000 rows. From Socrata, we know there are more (a lot more: 193,003 as of this writing), so we'll need to modify the query. From the link above, I clicked on "Access API", then "API Docs for the Dataset", which let me "Try the API" -- and thus discover the extra parameters available for size (number of rows) and offset (so you can get new rows, a bit at a time). You do have to already know the query syntax: a question mark to start, then an ampersand before each parameter=value pair.
+
+max_data <- 193003              # the actual maximum number of rows
+max_chunk <- 5000               # how many rows it'll let us take at a time
+skip_sequence <- seq(max_chunk, max_data, max_chunk)  
+print(skip_sequence)            # we'll loop through these offsets, adding rows each time
+
+ipps <- fromJSON(paste0("https://data.cms.gov/data-api/v1/dataset/3b383d0c-44a0-4036-af82-bbf3e40279a2/data?&size=", max_chunk))
+for (offset_val in skip_sequence) {
+    ipps <- rbind(ipps, fromJSON(paste0("https://data.cms.gov/data-api/v1/dataset/3b383d0c-44a0-4036-af82-bbf3e40279a2/data?&size=", max_chunk, "&offset=", offset_val)))  
+}
+
+str(ipps) # 193003 observations
+
+```
+
+
+Based on the structure of your data (JSON or CSV), uncomment the appropriate line below and replace df with a variable name that describes your dataset and [URL_OR_PATH_TO_DATA_FILE] with the URL to your dataset or the local path to your dataset. *Be sure to remove the brackets but to keep the quotation marks.* Then run the chunk to store your data in the variable.
+
+```{r}
+
+#df <- read.csv("[URL_OR_PATH_TO_DATA_FILE]", stringsAsFactors = FALSE)
+#df <- fromJSON("[URL_OR_PATH_TO_DATA_FILE]")
+
 ```
 
 
@@ -79,7 +116,7 @@ cases <- read.csv("https://raw.githubusercontent.com/nytimes/covid-19-data/maste
 ```{r}
 #Run this code chunk to see the structure of hospitals.
 
-str(hospitals)
+str(hospitals_data)
 ```
 
 Run this function for your own dataset. 
@@ -107,25 +144,69 @@ We can check the type of a variable as follows:
 
 #typeof(df$VARIABLE_NAME)
 
-typeof(hospitals$ID)
+typeof(hospitals_data$ID)
 ```
 
-There was only one variable in the hospitals dataset that we may want to convert to a different type. At first glance you may think its COUNTY_FIPS, which loaded as a character even though it looks like a number. We in fact want to keep this a character. County FIPS IDs have two parts - the first two digits represent a census-standardized state code and the second three digits represent a census-standardized county code. For example, California's state code is 06, and Yolo County's county code is 113, creating the FIPS code 06113. Just like we expect 5-digits in a postal code, systems that reference this number expect a certain number of digits. However, if the COUNTY_FIPS gets treated like a number, R will strip that leading zero in front of '6' in California's state code, and the COUNTY_FIPS will import as 6113. If instead, we treat the COUNTY_FIPS as a character, this leading zero won't get stripped. 
-
-With this in mind, we can see above that ZIP imported as a number, and we are going to want to transform ZIP into a character and add leading zeros until the string is five digits long. We will do this in a later step. The code below shows you all of the ZIP codes in the dataset that are missing leading zeros because they were imported as a number. 
+At first glance you may think COUNTYFIPS or ID, both of which seem to be all numbers, should be converted from the character type to numeric. We in fact want to keep both as character. Systems that reference these numbers expect a certain number of digits -- much like we expect 5 digits in a postal zip code. For example, in county FIPS IDs, the first two digits represent a census-standardized state code and the second three digits represent a census-standardized county code. California's state code is 06, and Kings County's county code is 031, creating the FIPS code 06031. However, if the COUNTYFIPS gets treated like a number, R will strip that leading zero in front of '6' in California's state code, and the COUNTYFIPS will import as 6113. By treating the COUNTYFIPS as a character, we ensure that the leading zero doesn't get stripped. 
 
 ```{r}
-#Run this code chunk.
+#Run this code chunk to compare character ZIP against numeric ZIP.
 
-hospitals %>%
-  filter(ZIP < 10000) %>%
-  select(NAME, ZIP) %>%
+hospitals_data$ZIP_num <- as.numeric(hospitals_data$ZIP) 
+
+hospitals_data %>%
+  filter(ZIP_num < 10000) %>%
+  select(NAME, ZIP, ZIP_num) %>%
   head(10)
+
 ```
 
-See how the ZIP codes above are not five digits? This is because they imported as numbers and their leading zeros were stripped. 
+The NY Times cases dataset does leave off these leading zeroes:
 
-When we call str(), we can see the data type of variable in the dataset. Scanning over the output of calling str() on your dataset, does it appear as though any of the variables are of the wrong type? For instance, values typed as chr that should be num? List any variables that are not the correct type.
+```{r}
+
+cases %>%
+  filter(fips < 10000) %>%
+  head(10)
+
+```
+
+If you encounter a ZIP, FIPS, or other categorical code that imported as a number, you'll want to transform it into a character and add leading zeros until the string is the correct number of digits long. 
+
+Let's go ahead and convert that numeric ZIP variable in the hospitals dataset into a char by casting the variable **as.character()**.
+
+```{r}
+# Run this code chunk to convert ZIP from numeric to character.
+cases$fips <- as.character(cases$fips)
+
+# Did it work?
+cases %>%
+  filter(as.integer(fips) < 10000) %>%    # NB: we can't directly compare characters to a number!
+  head(10)                                # But because we're not assigning the as.integer() value
+                                          # to a variable, it won't permanently change back.
+typeof(cases$fips)
+
+```
+
+We've got the right type, but R doesn't know how long the character strings need to be. For instance, FIPS county codes (like ZIP codes) should be 5-digits long regardless of whether they start with the number 0. After we've converted such numeric values to a character, we can pad the front of the string with a certain character until the string is the required length with  the **`str_pad()`** function. `str_pad()` is a function in the stringr package, which is included in the tidyverse. As arguments, it takes the vector of values you would like to pad, the number of characters that should constitute each value in that vector, and the character you would like to pad the value with. 
+
+```{r}
+# The code below takes the fips variable in the cases dataset and places the "0" character in front of each value in that variable until that value is 5 characters long. Run the chunk.
+
+cases$fips <- str_pad(cases$fips, 5, pad = "0") 
+
+# Did it work?
+cases %>%
+  filter(as.integer(fips) < 10000) %>%   
+  head(10)
+
+```
+
+Looks good! 
+
+## Your turn
+
+When we call `str()`, we can see the data type of every variable in the dataset. Scanning over the output of calling `str()` on your own dataset, does it appear as though any of the variables are of the wrong type? For instance, values typed as `chr` that should be `num`? List any variables that you suspect are not the correct type.
 
 ```{r eval=FALSE}
 Fill your response here. 
@@ -135,55 +216,34 @@ Fill your response here.
 
 This often happens when there are characters like commas, dollar signs, percent signs in the numeric column. We need to strip these characters before converting the variable to numeric. 
 
-Let's remove the characters that are appearing in these column with the gsub function, which replaces a character with another character - in this case with nothing. 
+Let's remove the characters that are appearing in these column with the `gsub()` function, which replaces a character with another character -- in this case with nothing. 
 
 ```{r}
-#Uncomment the last line, and fill the unwanted character, your data frame name, and the variable name. Copy and paste this line for each variable for which you need to substitute a character and fill accordingly. 
+#Uncomment the last line, and fill in your data frame name, the variable name, and the unwanted character. Leave the second quoted parameter blank ("") so the unwanted character is just deleted. Copy and paste this line for each variable for which you need to substitute a character and fill accordingly. 
 
 #df$VARIABLE_NAME <- gsub("UNWANTED CHARACTER", "", df$VARIABLE_NAME)
 #_____$_____ <- gsub("_____", "", _____$_____)
 ```
 
-### Do you need to change the data type of any variables (including the char to numeric conversion you prepared for above)?
-
-Let's go ahead and convert that numeric ZIP variable in the hospitals dataset into a char by casting the variable **as.character()**.
-
-```{r}
-#Run this code chunk to convert ZIP from numeric to character.
-
-hospitals$ZIP <- as.character(hospitals$ZIP) 
-```
+### Do you need to change the data type of any variables (including the character to numeric conversion you prepared for above)?
 
 Following the same pattern, change the type of any incorrectly typed variables in your own dataset. 
 
 ```{r}
-#Uncomment the last line, and fill the appropriate conversion type, your data frame name, and the variable name. Copy and paste this line for each variable that you need to convert to a different type and fill accordingly.
+# Uncomment the last line, and fill the appropriate conversion type, your data frame name, and the variable name. Copy and paste this line for each variable that you need to convert to a different type and fill accordingly.
 
-#df$VARIABLE_NAME <- as.numeric(df$VARIABLE_NAME) 
+# df$VARIABLE_NAME <- as.numeric(df$VARIABLE_NAME) 
 
-#Fill with one of the following: as.numeric, as.character, as.logical)
+# Fill with one of the following: as.numeric, as.character, as.logical)
 
-#_____$_____ <- _____(_____$______)
+# _____$_____ <- as._____(_____$______)
 ```
 
 This will overwrite the values in that variable with the same values but of the correct type. 
 
 ### Do you need to add leading zeros to any values in your data?
 
-As described above, sometimes we need to add characters to values in our dataset for that value to be an exact number of digits. For instance, ZIP codes should be 5-digits long regardless of whether they start with the number 0. After we've converted such numeric values to a character, we can pad the front of the string with a certain character until the string is the required length. For the hospitals dataset, we will need to add leading zeros to the ZIP codes we just converted to characters until they are all 5 characters in length. We can use **str_pad()** to do this. str_pad() is a function in the stringr package, which is included in the tidyverse. As arguments, it takes the vector of values you would like to pad, the number of characters that should constitute each value in that vector, and the character you would like to pad the value with. 
-
-```{r}
-# The code below takes the ZIP variable in the hospitals dataset and places the "0" character in front of each value in that variable until that value is 5 characters long. Run the chunk.
-
-hospitals$ZIP <- str_pad(hospitals$ZIP, 5, pad = "0") 
-
-hospitals %>%
-  filter(ZIP < 10000) %>%
-  select(NAME, ZIP) %>%
-  head(10)
-```
-
-If needed, do the same to a variable in your own dataset. Otherwise, skip the code block below.
+If needed, use `str_pad()` to add leading values to a variable in your own dataset. Otherwise, skip the code block below.
 
 ```{r}
 #Uncomment the last line, and fill the appropriate data frame, variable, and desired number of digits. 
@@ -212,12 +272,13 @@ ipps %>% head(10)
 colSums(is.na(ipps))
 ```
 
-Sometimes, when working with data, NA values will not appear in the first several rows. This is the case with the cases data. Run the code below, and in the tab that opens, scroll to row 417.
+Sometimes, when working with data, NA values will not appear in the first several rows. This is the case with the cases data. Run the code below, which will open a tab containing only the rows where the death variable is NA.
 
 ```{r}
 #Run this code and scroll to row 417 in the viewer. 
-
-View(cases)
+colSums(is.na(cases))
+na_death_index <- which(is.na(cases$deaths))
+View(cases[na_death_index, ])
 ```
 
 Fortunately, the NA values in this dataset are coded correctly - as greyed out and italicized NA. Data dictionaries can sometimes be helpful in documenting how NA values are recorded but not always. Often you will need to do deeper investigation on your data. 
@@ -227,70 +288,100 @@ In the hospitals dataset, we can see by calling head() that empty data is filled
 ```{r}
 #Run to check out the first ten rows of hospitals
 
-hospitals %>% head(10)
+hospitals_data %>% head(10)
 ```
 
-We will select all of the values equal to ("==") "NOT AVAILABLE" in the hospitals dataset and equal to ("==") -999 in the hospitals dataset, and convert them to NA. Check out how I do this below. 
+We will select all of the values equal to ("==") "NOT AVAILABLE" in the hospitals dataset and equal to ("==") -999 in the hospitals dataset, and convert them to NA. The `na_if()` function, included in dplyr (part of the tidyverse), makes this simple: the first parameter is the dataset, and the second is the value -- wherever it appears -- that you want to convert to NA.  
 
 ```{r}
-#Run this code chunk to convert to NAs.
+#Run this code chunk to convert NA-like values to actual NAs.
 
-is.na(hospitals) <- hospitals == "NOT AVAILABLE"
-is.na(hospitals) <- hospitals == -999
+hospitals_data <- na_if(hospitals_data, "NOT AVAILABLE")
+hospitals_data <- na_if(hospitals_data, -999)
+
+head(hospitals_data)
 ```
 
-Check out how null values are appearing your own dataset by following the commented instructions below. Note that I’m assuming that a null value appears in the first ten rows of your dataset. This may not be the case, and if we discover so later in the lab, we may need to come back to this cleaning step.
-
-```{r}
-#Uncomment the last line, and fill in your data frame name to view the first ten rows of the data frame.
-
-#df %>% head(10)
-
-#_____ %>% head(10) 
-```
-
-If necessary and where appropriate, convert values to NA in your own dataset by following the instructions below.
+Check out how null, or NA-like, values are appearing your own dataset by following the commented instructions below. Note that I’m assuming that a null value appears in the first 25 rows of your dataset. This may not be the case, and if we discover so later in the lab, we may need to come back to this cleaning step.
 
 ```{r}
 #Uncomment the last line, and fill in your data frame name to view the first ten rows of the data frame.
 
-#is.na(df) <- df == "unwanted string"  
+#df %>% head(25)
 
-#For example, if "NULL" appears in your dataset:
-#is.na(df) <- df == "NULL"
+#_____ %>% head(25) 
+```
 
-#is.na(_____) <- _____ == "_____" 
+If necessary and where appropriate, convert NA-like values to NA in your own dataset by following the instructions below.
+
+```{r}
+#Uncomment the last line, and fill in your data frame name to view the first ten rows of the data frame.
+
+#df <- na_if(df, "UNWANTED_STRING")
+
+#For example, if the character string "NULL" appears in your dataset:
+#df <- na_if(df, "NULL")
+
+#_____ <- na_if(_____, "_____")
 ```
 
 ### Do you have any variables in your dataset that refer to specific dates? 
 
 Dates can be converted to a date format using the lubridate package. This is a package in the Tidyverse that makes it possible to extract specific information (such as month or year) from dates, and to compute with dates.
 
-The hospitals dataset has two date variables: SOURCEDATE and VAL_DATE. On import, they both have the following format: yyyy-mm-ddThh:mm:ss.000Z Because the format is in the year-month-day hour:minute:second format, we will call ymd_hms() on the variable.
+The NYT cases data provides all dates as year-month-day character strings. Lubridate offers a simple function, `ymd()`, for converting these into date objects the computer can perform calculations on.
 
 ```{r}
-#Run this code chunk to convert to date formats.
+# Run this code chunk to convert to date formats.
 
-hospitals$SOURCEDATE <- ymd_hms(hospitals$SOURCEDATE)
-hospitals$VAL_DATE <- ymd_hms(hospitals$VAL_DATE)
-```
+# Before the conversion
+head(cases$date)
+typeof(cases$date)
 
-If they were instead listed in the month-day-year hour:minute:second format, we would instead call mdy_hms() on the variable. 
-
-If they were just in the year-month-day format, we would instead call ymd() on the variable. This is the case for the date variable in the cases dataset, so we will convert it below:
-
-```{r}
-#Run this code chunk to convert to date formats.
-
+# The conversion
 cases$date <- ymd(cases$date)
+
+# After the conversion
+head(cases$date)
+typeof(cases$date)
 ```
 
-Check out the format of your date. Is it just a year? Just a month? A year, month, and day? Are there times listed? What order are each of these values listed in? [This link](https://lubridate.tidyverse.org/) offers more information about how to structure date conversions. If the date is just a year, we can leave it as an int. Otherwise, we will convert the date to a date format. If you need to convert a date in your dataset, follow the instructions below:
+Similarly named functions handle similarly arranged formats: e.g. if values were listed in the month-day-year hour:minute:second format, we would instead call `mdy_hms()` on the variable; if they were instead yyyy-mm-ddThh:mm:ss.000Z, i.e. year-month-day hour:minute:second format, we would use `ymd_hms()`. There's a handy [lubridate cheat sheet](https://rawgit.com/rstudio/cheatsheets/master/lubridate.pdf) you can use to see the options.. 
+
+When the data comes as a numeric variable, chances are good it's already some kind of date-object format. That's good for the computer -- but confusing for us humans, as it's not immediately clear what it's counting. One of the most common numeric formats for computer dates, POSIX, expresses the number of seconds (positive or negative) between the time indicated and the stroke of midnight at the start of 1970: 
 
 ```{r}
-#Uncomment the last line, and fill the appropriate data frame name, variable name, and date format. 
+# The origin point for computer times
+origin <- ymd_hms("1970-01-01 00:00:00 UTC")
+as.numeric(origin)
+as.numeric(ymd("2020-01-06"))
+```
 
-#df$VARIABLE_NAME <- date_format(df$VARIABLE_NAME)
+The hospitals dataset has two date variables: SOURCEDATE and VAL_DATE. On import, they both appear to be very large integers: on the order of 1.454544e+12, which is to say, over 1.45 trillion. What, you might wonder, is this? A look at the data dictionary (conveniently stored in `hospitals$fields`) tells us that it's in the "esriFieldTypeDate" format, which turns out to encode *milliseconds* since the start of 1970. Lubridate doesn't have a function specficially for converting that data format, but it does have something very close: `as_datetime()` will convert the number of *seconds* since the same starting point. So we have to divide the existing values by 1000, giving us the POSIX time, and we're good to go.
+
+```{r}
+#Run this code chunk to convert to date formats. 
+
+# Before the conversion
+head(hospitals_data$SOURCEDATE)
+
+# The conversion
+hospitals_data$SOURCEDATE <- as_datetime(hospitals_data$SOURCEDATE / 1000)
+hospitals_data$VAL_DATE <- as_datetime(hospitals_data$VAL_DATE / 1000)
+
+# After the conversion
+head(hospitals_data$SOURCEDATE)
+head(hospitals_data$VAL_DATE)
+
+```
+
+
+**In your own dataset, check out the format of any date fields you find there.** Is it just a year? Just a month? A year, month, and day? Are there times listed? What order are each of these values listed in? [This lubridate overview](https://lubridate.tidyverse.org/) offers more information about how to structure date conversions. If the date is just a year, we can leave it as an integer. Otherwise, we will convert the date to a date format. If you need to convert a date in your dataset, follow the instructions below:
+
+```{r}
+#The first three lines are a model. Uncomment the last line, and fill the appropriate data frame name, variable name, and date format. 
+
+#df$VARIABLE_NAME <- [date_format](df$VARIABLE_NAME)
 
 #For example, if the date is in month day, year (March 1, 1999) format:
 #df$VARIABLE_NAME <- mdy(df$VARIABLE_NAME) 
@@ -309,7 +400,7 @@ At this point, we will begin exploring and getting to know your data. We will be
 * group_by() : group observations according to a common value
 * summarize() : perform an operation and return a single value
 
-In this lab, we will focus on the first two - select() and filter(). You can think of select() as a tool to reference specific columns (or variables) in a rectangular dataset, and filter() as a tool to reference specific rows (or observations) in a rectangular dataset. 
+In this lab, we will focus on the first two -- select() and filter(). You can think of select() as a tool to reference specific columns (or variables) in a rectangular dataset, and filter() as a tool to reference specific rows (or observations) in a rectangular dataset. 
 
 > In the functions below, you are going to see the following set of characters often: %>% This is known in the Tidyverse as a 'pipe'. A pipe connects different functions into one line of code (sort of like a conjunction in a sentence). You can think of the pipe as saying: "and then..." communicating to R that you are going tell it to do something else after the function we just called.
 
@@ -317,7 +408,7 @@ In this lab, we will focus on the first two - select() and filter(). You can thi
 
 To begin with, we are going to look at the variables in our dataset. You can check out the variables in your dataset in a number of ways, but perhaps the easiest way at this point will be to reference the 'Environment' tab in the upper right hand corner of RStudio. Click on the arrow next to your data frame name to see an expanded list of variables in your data frame. (Alternatively, you can call str(df) as we did above.)
 
-*Nominal categorical variables* are variables that identify something else. They name or categorize something that exists in the world. Sometimes, nominal categorical variables are obvious. For instance, in the hospitals dataset, the hospital NAME is a nominal categorical variable - referring to the actual hospital. CITY is also a nominal categorical variable - referring to the hospital's city. The hospital TYPE and OWNER are all nominal categorical variables - referring to specific categories the hospital is classed within. However, nominal categorical variables are not always strings. *Sometimes, numbers are considered nominal categorical variables.* For instance, a ZIP code is not a value that we operate on but instead refers to a certain place; it is a nominal categorical variable. In the hospitals dataset, the NAICS_CODE is a numeric reference to a particular industry classification; it is also a nominal categorical variable. Both OBJECTID and ID are nominal categorical variables referring to the hospital. 
+**Nominal categorical variables** are variables that identify something else. They name or categorize something that exists in the world. Sometimes, nominal categorical variables are obvious. For instance, in the hospitals dataset, the hospital NAME is a nominal categorical variable -- referring to the actual hospital. CITY is also a nominal categorical variable, referring to the hospital's city. The hospital TYPE and OWNER are all nominal categorical variables -- referring to specific categories the hospital is classed within. However, nominal categorical variables are not always strings. *Sometimes, numbers are considered nominal categorical variables.* For instance, a ZIP code is not a value that we operate on but instead refers to a certain place; it is a nominal categorical variable. In the hospitals dataset, the NAICS_CODE is a numeric reference to a particular industry classification; it is also a nominal categorical variable. Both OBJECTID and ID are nominal categorical variables referring to the hospital. 
 
 > In some of your datasets, 0s and 1s will refer to 'yes' and 'no' in the dataset. This is another case where numbers refer to categorical variables. Always be sure to check if numbers are a tally or measurement of something or if they are referring to something else. If they are referring to something else, often they are a nominal categorical variable.
 
@@ -337,7 +428,7 @@ hospitals %>% select(OBJECTID, ID, NAME, COUNTY, NAICS_CODE, TYPE) %>% head(10)
 
 ```
 
-*Ordinal categorical variables* are categorical variables that can be ranked or placed in a particular order. For instance, 'High', 'Medium', and 'Low' have a particular order. In the hospitals dataset, there is one ordinal categorical variable - TRAUMA, which characterizes the hospital's trauma level designation. Trauma level designations indicate the extent of resources available at a hospital to deal with certain categories of trauma. It is most often broken into Level I through Level V. We can see how a data analyst may want to place trauma categories in a particular order (for instance, ordering hospitals from highest to lowest trauma levels). However, this is a particularly complicated categorical variable to work with. This is because Trauma levels are not defined according to a national standard. Instead, they are defined on a state-by-state basis, and our dataset spans all US states. Level II in one state might mean something different than Level II in another state despite both being labeled Level II in the dataset. Further, a single hospital can have multiple trauma levels (e.g. Level I Pediatric and Level II Adult). We would need to take all of this into consideration when comparing trauma levels across hospitals on a national scale.
+**Ordinal categorical variables** are categorical variables that can be ranked or placed in a particular order. For instance, 'High', 'Medium', and 'Low' have a particular order. In the hospitals dataset, there is one ordinal categorical variable: TRAUMA, which characterizes the hospital's trauma level designation. Trauma level designations indicate the extent of resources available at a hospital to deal with certain categories of trauma. It is most often broken into Level I through Level V. We can see how a data analyst may want to place trauma categories in a particular order (for instance, ordering hospitals from highest to lowest trauma levels). However, this is a particularly complicated categorical variable to work with. This is because Trauma levels are not defined according to a national standard. Instead, they are defined on a state-by-state basis, and our dataset spans all US states. Level II in one state might mean something different than Level II in another state despite both being labeled Level II in the dataset. Further, a single hospital can have multiple trauma levels (e.g. Level I Pediatric and Level II Adult). We would need to take all of this into consideration when comparing trauma levels across hospitals on a national scale.
 
 List three ordinal categorical variables in your dataset. Use **select()** to select these variables in your dataset, and use **head(10)** to limit the display to the first 10 rows. 
 
@@ -367,19 +458,19 @@ List three discrete numerical variables in your dataset. Use **select()** to sel
 #df %>% select(VARIABLE_NAME1, VARIABLE_NAME2, VARIABLE_NAME3) %>% head(10)
 
 #Here are the discrete numeric variables in the hospitals dataset
-hospitals %>% select(POPULATION, BEDS, TTL_STAFF) %>% head(10)
+hospitals_data %>% select(POPULATION, BEDS, TTL_STAFF) %>% head(10)
 
 #_____ %>% select(_____, _____, _____) %>% head(10)
 
 ```
 
-*Continuous numeric variables* are variables that would take an infinite amount of time to precisely count. You can think of these as variables in which it is always possible to measure the value more precisely. For instance, time would be considered a continuous numeric variable because time can be measured with infinite amount of specificity - hours > minutes > seconds > milliseconds > microseconds > nanoseconds ... and so on. Ruler measurements are also continuous because they can also be measured with infinite more precision. In the hospitals dataset, both latitude and longitude are continuous numeric variables as we can always measure them with more precision. 
+**Continuous numeric variables** are variables that would take an infinite amount of time to precisely count. You can think of these as variables in which it is always possible to measure the value more precisely. For instance, time would be considered a continuous numeric variable because time can be measured with infinite amount of specificity: hours > minutes > seconds > milliseconds > microseconds > nanoseconds ... and so on. Ruler measurements are also continuous because they can also be measured with infinitely more precision. In the hospitals dataset, both latitude and longitude are continuous numeric variables, as we can always measure them more precisely. 
 
 > While it's a bit controversial, for the purposes of this assignment, we will also treat ratios as continuous data, so you may list those below.
 
 List three continuous numeric variables in your dataset. Use **select()** to select these variables in your dataset, and use **head(10)** to limit the display to the first 10 rows.
 
-> Note that you may not be able to list three of each below. Some of you do not have any continuous numeric variables in your dataset. This is fine.
+> Note that you may not be able to list three of each below. Some of you may not have any continuous numeric variables in your dataset. This is fine. In the latter case, add a comment to the box, just so I can see you engaged here and didn't scroll past.
 
 ```{r}
 #Uncomment the last line, and fill the appropriate data frame name and variable names for your own dataset. Run.
@@ -387,19 +478,19 @@ List three continuous numeric variables in your dataset. Use **select()** to sel
 #df %>% select(VARIABLE_NAME1, VARIABLE_NAME2, VARIABLE_NAME3) %>% head(10)
 
 #Here are the continuous numeric variables in the hospitals dataset
-hospitals %>% select(LATITUDE, LONGITUDE) %>% head(10)
+hospitals_data %>% select(LATITUDE, LONGITUDE) %>% head(10)
 
 #_____ %>% select(_____, _____, _____) %>% head(10)
 ```
 
 ### What makes each observation in your dataset unique?
 
-The last time that I ran this course, one student ran into some issues when trying to make sense of the values reported in her dataset. She was working with a dataset documenting counts of arrests in each California county each year according to the age, gender, and race/ethnic group of arrestee. Check out this data below. (Note that this may take a few moments to load.)
+It's a truism that data is messy, and one challenge is figuring out what constitutes a single observation. For example, Poirier reported about one student ran into some issues when trying to make sense of the values reported in her dataset. She was working with a dataset documenting counts of arrests in each California county each year according to the age, gender, and race/ethnic group of arrestee. Check out this data below. (Note that this may take a few moments to load.)
 
 ```{r}
 #Run.
 
-ca_arrests <- read.csv("https://data-openjustice.doj.ca.gov/sites/default/files/dataset/2019-06/OnlineArrestDispoData1980-2018.csv", stringsAsFactors = FALSE)
+ca_arrests <- read.csv("datasets/OnlineArrestDispoData1980-2020.csv", stringsAsFactors = FALSE)
 
 ca_arrests %>% head()
 ```
@@ -413,20 +504,20 @@ ca_arrests %>%
   filter(YEAR == 2001 & COUNTY == "Sacramento County" & GENDER == "Male" & RACE == "White" & ARREST_DISP_CODE == "Released" & AGE_GROUP == "20 to 29")
 ```
 
-See how above, in 2001 in Sacramento Couty white male individuals age 20 to 29 that were released had both 0 and 1 felony arrests? How was this possible? The only other values in the dataset were counts of arrests. There was nothing else in the dataset that could make each row unique. So was there 1 felony arrest for this group or 0? We went ahead and emailed OpenJustice - the program that had made the dataset available. I asked the following in an email:
+See how above, in 2001 in Sacramento Couty white male individuals age 20 to 29 that were released had both 0 and 1 felony arrests? How was this possible? The only other values in the dataset were counts of arrests. There was nothing else in the dataset that could make each row unique. So was there 1 felony arrest for this group or 0? They went ahead and emailed OpenJustice -- the program that had made the dataset available. Poirier asked the following in an email:
 
 > "I'm writing to ask about some issues [a student] came across while analyzing the dataset. It appears that there are several rows in the dataset that report different numeric values but refer to the same set of categories. For example in the attached image, there are three rows that refer to 1980, Alameda County, Male, Other, Complaint Sought, and 18 to 19, but they all report different values. We were wondering if you could explain what makes these rows distinct so we have a better sense of whether it is appropriate to sum them."
 
 A week later, they responded: "The program that aggregates the raw Arrest Disposition data uses certain variables not present in the output file. This currently creates multiple rows when all other present variables are distinctly filtered for. The Summary Offense Category counts (F_TOTAL, M_TOTAL, etc.) must be summed up for the multiple rows present."
 
-In this case, we needed to transform the data - adding up the numeric values across rows in which all other categorical values were the same in order to account for other categorical variables that were not present in the public data. (We will go over how to do this data transformation next week.) We would need to do this so that every set of values reported in the data was reported according to a distinct *observational unit*, or in other words, so that we had a way of uniquely identifying what each row in the dataset referred to.
+In other words, Poirier's student needed to transform the data -- adding up the numeric values across rows in which all other categorical values were the same in order to account for other categorical variables that were not present in the public data. (We will go over how to do this data transformation next week.) We would need to do this so that every set of values reported in the data was reported according to a distinct *observational unit*, or in other words, so that we have a way of uniquely identifying what each row in the dataset referred to.
 
-In starting our data analysis, we need to have a good sense of what each observation in our dataset refers to - or its *observational unit*. Think of it this way. If you were to count the number rows in your dataset, what would that number refer to? Consider our example datasets by running the code below (no need to fill in the blank at this point.)
+In starting our data analysis, we need to have a good sense of what each observation in our dataset refers to -- its *observational unit*. Think of it this way. If you were to count the number rows in your dataset, what would that number refer to? Consider our example datasets by running the code below (no need to fill in the blank at this point.)
 
 ```{r}
 # Remember that paste() allows you to create strings that concatenate other strings that you provide, along with other values. We separate all of the components of the string we wish to paste together with commas. We went over this lab 1. Run this code chunk.
 
-paste("I have", nrow(hospitals), "unique _____ represented in my dataset.")
+paste("I have", nrow(hospitals_data), "unique _____ represented in my dataset.")
 paste("I have", nrow(cases), "unique _____ represented in my dataset.")
 paste("I have", nrow(ipps), "unique _____ represented in my dataset.")
 ```
@@ -441,6 +532,7 @@ Get this statement started for your dataset:
 
 To figure out how to fill that second blank in the statement, it is often useful to identify a variable or set of variables that can serve as a unique key for the data. A *unique key* is a variable (or set of variables) that uniquely identifies an observation in the dataset. For example, in the ca_arrests dataset above, the unique key would be a long combination of variables (the year, county, gender, race, arrest disposition, and age group would uniquely identify each row only after we had transformed it). Think of a unique key as a unique way to identify a row and all of the values in it. There should never be more than one row in the dataset with the same unique key. A unique key tells us what each row in the dataset refers to. 
 
+#### Case 1: Hospitals
 In the hospitals dataset, the unique key is a bit more obvious. There is a variable called OBJECTID that uniquely refers to the geographic coordinates in the dataset, and there is a variable called ID that uniquely refers to the hospital in the dataset. We can confirm that these are indeed unique keys by counting the number of **distinct()** (or non-repeating) values in this variable and making sure it is equal to the number of rows in the entire dataset. If the distinct values in the variable is equal to the number of rows in the dataset, then we know that the key never repeats and that it can uniquely identify each row. 
 
 ```{r}
@@ -448,12 +540,12 @@ In the hospitals dataset, the unique key is a bit more obvious. There is a varia
 
 # Count the distinct values in your unique key
 n_unique_keys <- 
-  hospitals %>% 
+  hospitals_data %>% 
   select(ID) %>% 
   n_distinct()
 
 # Count the rows in your dataset
-n_rows <- nrow(hospitals)
+n_rows <- nrow(hospitals_data)
 
 # Make sure these numbers are equal
 n_unique_keys == n_rows
@@ -464,12 +556,14 @@ Since the ID field refers to a specific hospital, in this dataset a hospital is 
 ```{r}
 #Run.
 
-paste("I have", nrow(hospitals), "unique hospitals represented in my dataset.")
+paste("I have", nrow(hospitals_data), "unique hospitals represented in my dataset.")
 ```
 
-> Note that NAME is typically not an appropriate variable to use as a unique key. Let me provide an example to demonstrate this. When I worked for BetaNYC, I was trying to build a map of vacant storefronts in NYC by mapping all commercially zoned properties in the city, and then filtering out those properties where a business was licensed or permitted. This way the map would only include properties where there wasn't a business operating. One set of businesses I was filtering out was restaurants. The only dataset that the city had made publicly available for restaurant permits was broken. It was operating on an automated process to update whenever there was a change in the permit; however, whenever a permit was updated, rather than updating the appropriate fields in the existing dataset, it was creating a new row in the dataset that only included the permit holder (the restaurant name), the permit type, and the updated fields. Notably the unique permit ID was not being included in this new row. We pointed this issue out to city officials, but fixing something like this can be slow and time-consuming, so in the meantime, we looked into whether we could clean the data ourselves by aggregating the rows that referred to the same restaurant. However, without the permit ID it was impossible to uniquely identify the restaurants in the dataset. Sure, we had the restaurant name, but do you know how many Wendy's there are in NYC?
+Note that NAME is typically not an appropriate variable to use as a unique key. Poirier provides an example to demonstrate this:
+> When I worked for BetaNYC, I was trying to build a map of vacant storefronts in NYC by mapping all commercially zoned properties in the city, and then filtering out those properties where a business was licensed or permitted. This way the map would only include properties where there wasn't a business operating. One set of businesses I was filtering out was restaurants. The only dataset that the city had made publicly available for restaurant permits was broken. It was operating on an automated process to update whenever there was a change in the permit; however, whenever a permit was updated, rather than updating the appropriate fields in the existing dataset, it was creating a new row in the dataset that only included the permit holder (the restaurant name), the permit type, and the updated fields. Notably the unique permit ID was not being included in this new row. We pointed this issue out to city officials, but fixing something like this can be slow and time-consuming, so in the meantime, we looked into whether we could clean the data ourselves by aggregating the rows that referred to the same restaurant. However, without the permit ID it was impossible to uniquely identify the restaurants in the dataset. Sure, we had the restaurant name, but do you know how many identically-named Wendy's locations there are in NYC?
 
-In the ipps dataset, the unique ID is less obvious. Because we have values reported for multiple diagnosis categories at multiple hospitals, we need to rely on two variables to signify what makes each observation unique - DRG.Definition and Provider.ID.
+#### Case 2: IPPS
+In the ipps dataset, the unique ID is less obvious. Because we have values reported for multiple diagnosis categories at multiple hospitals, we need to rely on two variables to signify what makes each observation unique: one for the provider, and one for the diagnosis category.
 
 ```{r}
 #Run. 
@@ -477,7 +571,7 @@ In the ipps dataset, the unique ID is less obvious. Because we have values repor
 # Count the distinct values in your unique key
 n_unique_keys <- 
   ipps %>% 
-  select(DRG.Definition, Provider.Id) %>% 
+  select(Rndrng_Prvdr_CCN, DRG_Cd) %>% 
   n_distinct()
 
 # Count the rows in your dataset
@@ -487,7 +581,50 @@ n_rows <- nrow(ipps)
 n_unique_keys == n_rows
 ```
 
-In this dataset a diagnosis category and unique provider is what makes each observation unique. In other words, the dataset's observational unit is a diagnosis category for a given provider. Now you can confidently say:
+And here is why we check those values, rather than rely on intuition: it turns out that there are 5,000 more rows in ipps than there are unique keys! A little investigation reveals that these rows are exact duplicates:
+
+```{r}
+# Identify the rows with duplicating key pairs
+repeat_keys <- 
+  ipps %>% 
+  group_by(Rndrng_Prvdr_CCN, DRG_Cd) %>%
+  filter(n() > 1) %>%
+  arrange(.by_group = TRUE)
+
+head(repeat_keys)
+nrow(repeat_keys)    # 10,000
+
+# Remove exactly duplicated rows / preserve only distinct rows
+deduplicated <- repeat_keys %>% distinct()
+
+nrow(deduplicated)   #  5,000
+```
+
+Those extra 5,000 rows turn out to be an existing 5,000 rows, each appearing twice in the dataset. We should probably let the data administrator know about this problem!
+
+For now, we can repeat the process for the full ipps dataset and confirm our instinct on what we need to define each observation:
+
+```{r}
+# Remove exactly duplicated rows from the full dataset
+ipps <- ipps %>% distinct()
+
+# Repeat the key analysis from above
+# Count the distinct values in your unique key
+n_unique_keys <- 
+  ipps %>% 
+  select(Rndrng_Prvdr_CCN, DRG_Cd) %>% 
+  n_distinct()
+
+# Count the rows in your dataset
+n_rows <- nrow(ipps)
+
+# Make sure these numbers are equal
+n_unique_keys == n_rows
+
+```
+
+
+In this dataset a diagnosis category and unique provider does indeed make each observation unique. In other words, the dataset's observational unit is two-dimensional: a diagnosis category for a given provider. Now you can confidently say:
 
 ```{r}
 #Run. 
@@ -495,7 +632,8 @@ In this dataset a diagnosis category and unique provider is what makes each obse
 paste("I have", nrow(ipps), "unique diagnosis categories for a given provider represented in my dataset.")
 ```
 
-In the cases dataset, the unique ID is also more complicated. cases counts are listed for each county in each state, each day since January 21, 2020, and some states have counties with the same name. Because of this we will need to reference the state, county code, and the date reporting to uniquely identify each row. 
+#### Case 3: Case counts
+In the COVID-19 cases dataset, the unique ID is also more complicated. cases counts are listed for each county in each state, each day since January 21, 2020, and some states have counties with the same name. Because of this we will need to reference the state, county code, and the date reporting to uniquely identify each row. 
 
 > You may be wondering why we are not using the fips code to uniquely identify each state/county. The reason for this is that, for some reports, the county is unknown, and the fips code value is NA. In this case, the fips code will be reported for multiple counties as NA *on the same day*.
 
@@ -516,7 +654,7 @@ n_rows <- nrow(cases)
 # Make sure these numbers are equal
 n_unique_keys == n_rows
 ```
-In this case, every row in the dataset is a county, state, and date. In other words, the dataset's observational unit is a county/state/date. Now you can confidently say:
+In this case, every row in the dataset is a county, state, and date. In other words, the dataset's observational unit is a county/state/date, making this dataset three-dimensional. Now you can confidently say:
 
 ```{r}
 #Run. 
@@ -524,6 +662,7 @@ In this case, every row in the dataset is a county, state, and date. In other wo
 paste("I have", nrow(cases), "unique counties/states/dates represented in my dataset.")
 ```
 
+#### Now for your own dataset
 What variable or combination of variables makes each observation in your dataset unique? Confirm that you are correct below. 
 
 ```{r}
@@ -557,7 +696,7 @@ Fill in the statement below, and make sure that it makes sense with your data.
 Anytime we count something in the world, we are not only engaging in a process of tabulation; we are also engaged in a process of defining. If I count the number of students in a class, I first have to define what counts as a student. If someone is auditing the class, do they count? If I, as the instructor, am learning from my students, do I count myself as a student? As I make decisions about how I'm going to define "student," those decisions impact the numbers that I produce. When I change my definition of "student," how I go about tabulating students also changes. 
 Thus, as we prepare to count observations in a dataset, it is important to know how those observations are defined. When I say that there are 7581 hospitals in the hospitals dataset, this number does not mean much until I understand how hospitals were defined in the dataset. Which hospitals? In what part of the world? From what time period? Are hospitals that were once open and are now closed included? Are psychiatric hospitals included? Are nursing homes included? Who gets to decide what counts as a hospital? 
 
-Analyzing the hospitals [data documentation](https://hifld-geoplatform.opendata.arcgis.com/datasets/6ac5e325468c4cb9b905f1728d6fbf0f_0), we find the following statement:
+Analyzing the hospitals [data documentation](https://hifld-geoplatform.opendata.arcgis.com/datasets/geoplatform::hospitals/about), we find the following statement:
 
 > "This feature class/shapefile contains locations of Hospitals for 50 US states, Washington D.C., US territories of Puerto Rico, Guam, American Samoa, Northern Mariana Islands, Palau, and Virgin Islands.The dataset only includes hospital facilities based on data acquired from various state departments or federal sources which has been referenced in the SOURCE field. Hospital facilities which do not occur in these sources will be not present in the database....The database does not contain nursing homes or health centers."
 
@@ -591,13 +730,13 @@ Later in the documentation, the New York Times team goes on:
 > "Confirmed cases and deaths are counts of individuals whose coronavirus infections were confirmed by a laboratory test and reported by a federal, state, territorial or local government agency."
 > "Probable cases and deaths count individuals who did not have a confirmed test but were evaluated using criteria developed by states and the federal government."
 
-Up through April, the US CDC had only been reporting "confirmed cases." However, on April 5, 2020, the Council of State and Territorial Epidemiologists Centers began recommending that states report both in order to account for highly likely cases that had not received a laboratory test. Some states have began reporting both confirmed and probable cases; other states didn't. The New York Times can only report the numbers based on what is being reported, so they list in the [documentation](https://github.com/nytimes/covid-19-data) how each state is reporting their numbers. This is something we have to keep in mind when monitoring the differences in cases across states. Not every state defines a case in the same way!
+Up through April, the US CDC had only been reporting "confirmed cases." However, on April 5, 2020, the Council of State and Territorial Epidemiologists Centers began recommending that states report both in order to account for highly likely cases that had not received a laboratory test. Some states began reporting both confirmed and probable cases; other states didn't. The New York Times can only report the numbers based on what is being reported, so they list in the [documentation](https://github.com/nytimes/covid-19-data) how each state is reporting their numbers. This is something we have to keep in mind when monitoring the differences in cases across states. Not every state defines a case in the same way!
 
 Now consider the ipps dataset. In the [data documentation](https://data.cms.gov/api/views/tcsp-6e99/files/1a3b7fed-4f45-4eec-9957-94313493cfac?download=true&filename=Medicare_Hospital_Inpatient_PUF_Methodology_2019-08-05.pdf) for this dataset, a section called Population helps us discern the scope of the observations recorded in this data:
 
 > The Inpatient PUF includes data on FFS beneficiaries from inpatient providers that submitted Medicare Part A IPPS short term institutional claims during the fiscal year. To protect the privacy of Medicare beneficiaries, any aggregated records which are derived from 10 or fewer discharges are excluded from the Inpatient PUF.
 
-Let's unpack that a bit. In this case, FFS stands for fee-for-service, indicating an insurance plan in which a provider is paid separately for each service rendered. Medicare has four parts - Part A, Part B, Part C, and Part D. Part A is standard in Medicare coverage and covers short-term hospitalizations specifically (whereas Part C, which is not standard covers long-term in-patient stays). So this definition is telling us that this data covers each claim made by a Medicare Part A patient for a specific service. What is important to note from this definition is that the data is not representative of the payments made by the entire population the hospital serves. Specifically, it does not include any information about payments made by patients not covered by Medicare. It also does not include data about discharges with fewer than ten claims at a given hospital.
+Let's unpack that a bit. In this case, FFS stands for fee-for-service, indicating an insurance plan in which a provider is paid separately for each service rendered. Medicare has four parts - Part A, Part B, Part C, and Part D. Part A is standard in Medicare coverage and covers short-term hospitalizations specifically (whereas Part C, which is not standard, covers long-term in-patient stays). So this definition is telling us that this data covers each claim made by a Medicare Part A patient for a specific service. What is important to note from this definition is that the data is not representative of the payments made by the entire population the hospital serves. Specifically, it does not include any information about payments made by patients not covered by Medicare. It also does not include data about discharges with fewer than ten claims at a given hospital.
 
 Choose a key variable in your dataset. How is this key variable in your dataset defined? 
 
@@ -619,15 +758,15 @@ When called on a specific variable, **distinct()** lists each of the unique valu
 #Run the following code. 
 
 #df %>% select(VARIABLE_NAME) %>% distinct()
-hospitals %>% select(TYPE) %>% distinct()
+hospitals_data %>% select(TYPE) %>% distinct()
 
 #df %>% select(VARIABLE_NAME) %>% n_distinct()
-hospitals %>% select(TYPE) %>% n_distinct()
+hospitals_data %>% select(TYPE) %>% n_distinct()
 ```
 
-Often in ethnography, it is our job to take something that seems obvious or familiar to us and to question it as if it were strange. When running the function above, we may ask why values are categorized the way that they are - even if those categories seem obvious at first glance. 
+In ethnography it is often our job to take something that seems obvious or familiar to us and to question it as if it were strange. When running the function above, we may ask why values are categorized the way that they are -- even if those categories seem obvious at first glance. 
 
-For instance, in the hospitals dataset, we might ask why it is that we have separate categories for different types of hospitals. With just a bit of research, we find that there is rich history behind these hospital types. For instance, "critical access hospitals" was a designation created in 1997 to improve access to hospitals in rural parts of the US, following an almost two-decade long wave of hospital closures in rural communities. To receive federal funding, critical access hospitals should have no more than 25 beds. See this [source](https://www.ruralhealthinfo.org/topics/critical-access-hospitals). Psychiatric hospitals, while following a similar timeline to the development of general hospitals in the US, developed in response to changing attitudes and understandings of what it meant to be mentally ill. In the 18th century, mental illness was often considered a moral or spiritual shortcoming; however, the increased emphasis on *moral treatment* of mentally ill patients ushered in a new wave of institutions and wards devoted to the treatment of such patients. See this [source](https://www.nursing.upenn.edu/nhhc/nurses-institutions-caring/history-of-psychiatric-hospitals/).
+For instance, in the hospitals dataset, we might ask why it is that we have separate categories for different types of hospitals. With just a bit of research, we find that there is rich history behind these hospital types. For instance, "critical access hospitals" was a designation [created in 1997 to improve access to hospitals in rural parts of the US](https://www.ruralhealthinfo.org/topics/critical-access-hospitals), following an almost two-decade long wave of hospital closures in rural communities. To receive federal funding, critical access hospitals should have no more than 25 beds. [Psychiatric hospitals](https://www.nursing.upenn.edu/nhhc/nurses-institutions-caring/history-of-psychiatric-hospitals/), while following a similar timeline to the development of general hospitals in the US, developed in response to changing attitudes and understandings of what it meant to be mentally ill. In the 18th century, mental illness was often considered a moral or spiritual shortcoming; however, the increased emphasis on *moral treatment* of mentally ill patients ushered in a new wave of institutions and wards devoted to the treatment of such patients.
 
 Let's check a second variable in the hospitals dataset.
 
@@ -635,26 +774,26 @@ Let's check a second variable in the hospitals dataset.
 #Run the following code. 
 
 #df %>% select(VARIABLE_NAME) %>% distinct()
-hospitals %>% select(OWNER) %>% distinct()
+hospitals_data %>% select(OWNER) %>% distinct()
 #df %>% select(VARIABLE_NAME) %>% n_distinct()
-hospitals %>% select(OWNER) %>% n_distinct()
+hospitals_data %>% select(OWNER) %>% n_distinct()
 ```
 
 Upon running this, we might ask why these different hospital business models exist. With just a bit of research, we can find a [history of hospital ownership](https://www.nursing.upenn.edu/nhhc/nurses-institutions-caring/history-of-hospitals/). From this history, we can see that a number of cultural, political, and economic forces has shaped hospital ownership models. In other words, these categories have a rich cultural history and tell us not only about our data, but also about the cultural context in which data gets enumerated.
 
-In some cases, like in the hospitals examples we just looked at, data will only be classified into a few categories. However, in other cases, data can classified into many more categories. Take the DRG.Definition variable in the ipps dataset. This variable includes a code and description for a Medicare Severity Diagnosis Related Group (MS-DRG) classification - which is a standard classification system for grouping diagnoses and procedures at hospitals to facilitate payments for hospital services. Let's check out the categories in this variable.
+In some cases, like in the hospitals examples we just looked at, data will only be classified into a few categories. However, in other cases, data can classified into many more categories. Take the `DRG_Desc` variable in the ipps dataset. This variable includes a code and description for a Medicare Severity Diagnosis Related Group (MS-DRG) classification -- which is a standard classification system for grouping diagnoses and procedures at hospitals to facilitate payments for hospital services. Let's check out the categories in this variable.
 
 ```{r}
 #Run the following code. 
 
 #df %>% select(VARIABLE_NAME) %>% distinct()
-ipps %>% select(DRG.Definition) %>% distinct()
+ipps %>% select(DRG_Desc) %>% distinct()
 #df %>% select(VARIABLE_NAME) %>% n_distinct()
-ipps %>% select(DRG.Definition) %>% n_distinct()
+ipps %>% select(DRG_Desc) %>% n_distinct()
 ```
-How did the creators of this classification system (Robert B. Fetter, PhD, and John D. Thompson, MPH, of Yale University) determine how to divide these categories? What counts as a distinct diagnosis or procedure? Why does it matter whether or not there were complications/co-morbidity (e.g. "w cc" above)? The original goal of creating these categories was to curb rising healthcare costs in the US in the 1980s. The categories grouped diagnoses and procedures so that the Center for Medicare and Medicaid Services could vary the rates at which they would reimburse patients for hospital stays according to the variations in the cost for each diagnosis. Throughout the 2000s, the classification was revised to account for varying severities of a particular diagnosis - including separate categories for a diagnosis when the patient experienced complications/co-morbitity (cc) or major complications/co-morbidity (mcc) - since these cases often incurred much higher costs. 
+How did the creators of this classification system (Robert B. Fetter, PhD, and John D. Thompson, MPH, of Yale University) determine how to divide these categories? What counts as a distinct diagnosis or procedure? Why does it matter whether or not there were complications/co-morbidity (e.g. "w cc" above)? The original goal of creating these categories was to curb rising healthcare costs in the US in the 1980s. The categories grouped diagnoses and procedures so that the Center for Medicare and Medicaid Services could vary the rates at which they would reimburse patients for hospital stays according to the variations in the cost for each diagnosis. Throughout the 2000s, the classification was revised to account for varying severities of a particular diagnosis -- including separate categories for a diagnosis when the patient experienced complications/co-morbitity (cc) or major complications/co-morbidity (mcc) -- since these cases often incurred much higher costs. 
 
-Choose a categorical variable in your dataset to explore further. Be sure to select a variable in which the values represented in each row are likely to appear more than once. Select that variable and then call distinct() and n_distinct(). 
+**Choose a categorical variable in your dataset to explore further.** Be sure to select a variable in which the values represented in each row are likely to appear more than once. Select that variable and then call distinct() and n_distinct(). 
 
 ```{r}
 #Uncomment the appropriate lines below, and fill in your data frame and categorical variable name.
@@ -699,16 +838,16 @@ Check the number of NAs in each variable in your dataset by filling in the blank
 #colSums(sapply(_____, is.na)) 
 ```
 
-Let's explore a variable with many NAs. This is going to be the first time we see the function filter(). **filter()** subsets our data to the observations (or rows) that meet a certain criteria. Below, we will filter our data to those observations in which a certain variable is an NA. However, we can filter by a number of criteria; for instance, we can filter to those rows with a variable that:
+Let's explore a variable with many NAs. This is going to be the first time we see the function `filter()`. **`filter()`** subsets our data to the observations (or rows) that meet a certain criteria. Below, we will filter our data to those observations in which a certain variable is an NA. However, we can filter by a number of criteria; for instance, we can filter to those rows with a variable that:
 
-* equals a particular value: == "VALUE"
-* is less than a particular value: < VALUE
-* is greater than a particular value : > VALUE
-* is less than or equal to a particular value: <= VALUE
-* is greater than or equal to a particular value: >= VALUE
-* is one of a vector of values: %in% c(VALUE1, VALUE2)
+* equals a particular value: `== "VALUE"`
+* is less than a particular value: `< VALUE`
+* is greater than a particular value : `> VALUE`
+* is less than or equal to a particular value: `<= VALUE`
+* is greater than or equal to a particular value: `>= VALUE`
+* is included in a vector of values: `%in% c(VALUE1, VALUE2)`
 
-Here is how we filter data to the rows in which a certain variable is an NA. I also call head(30) to display the first 30 rows in the dataset.
+Here is how we filter data to the rows in which a certain variable is an NA. I also call `head(30)` to display the first 30 rows in the dataset.
 
 Let's start with the cases dataset.
 
@@ -726,7 +865,7 @@ We can see in all of these cases that the county is listed as Unknown or New Yor
 
 > "Many state health departments choose to report cases separately when the patient’s county of residence is unknown or pending determination. In these instances, we record the county name as “Unknown.”"
 
-Apply a few additional filter conditions to test your hypothesis as to why there are missing values in the variable you selected. 
+**Using your own dataset, apply a few additional filter conditions** to test your hypothesis as to why there are missing values in the variable you selected. 
 
 ```{r}
 #Apply filter conditions here. Run the code.
@@ -767,11 +906,11 @@ Fill your response here.
 #Some more specific examples
 #df %>% mutate(Total = VARIABLE_NAME1 + VARIABLE_NAME2 + VARIABLE_NAME3)
 #df %>% mutate(Difference = VARIABLE_NAME1 - VARIABLE_NAME2)
-#df %>% mutate(Average = VARIABLE_NAME1 + VARIABLE_NAME2 + VARIABLE_NAME3 / 3)
-#df %>% mutate(New_String = paste(VARIABLE_NAME1, VARIABLE_NAME2, sep=" ") Remember that we use paste to concatenate strings.
+#df %>% mutate(Average = (VARIABLE_NAME1 + VARIABLE_NAME2 + VARIABLE_NAME3) / 3)
+#df %>% mutate(New_String = paste(VARIABLE_NAME1, VARIABLE_NAME2, sep=" ") # Remember that we use paste to concatenate strings; the value of sep will be repeated between each adjacent string you join.
 
 #head() only displays the first six rows
-hospitals %>% mutate(BEDS_PER_POP = BEDS/POPULATION) %>% select(NAME, BEDS_PER_POP) %>% head(10)
+hospitals_data %>% mutate(BEDS_PER_POP = BEDS/POPULATION) %>% select(NAME, BEDS_PER_POP) %>% head(10)
 
 #Note running the function above will not permanently add the variable to the dataframe; it will only add it when you run the line above. If you want to permanently add the variable to the dataframe, you need to assign the function back to the dataframe variable like this:
 
@@ -788,7 +927,7 @@ hospitals %>% mutate(BEDS_PER_POP = BEDS/POPULATION) %>% select(NAME, BEDS_PER_P
 #df %>% arrange(desc(VARIABLE_NAME))
 
 #head() only displays the first six rows
-hospitals %>% arrange(BEDS) %>% select(NAME, BEDS) %>% head(10)
-hospitals %>% arrange(desc(BEDS)) %>% select(NAME, BEDS) %>% head(10)
+hospitals_data %>% arrange(BEDS) %>% select(NAME, BEDS) %>% head(10)
+hospitals_data %>% arrange(desc(BEDS)) %>% select(NAME, BEDS) %>% head(10)
 ```
 

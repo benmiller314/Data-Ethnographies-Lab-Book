@@ -1,14 +1,14 @@
 ---
 title: "Lab 2 - Research Plan and Dataset Hopping"
 output:
-  html_notebook:
-    toc: yes
-    toc_depth: 3
-    toc_float: yes
   html_document:
     df_print: paged
     toc: yes
     toc_depth: '3'
+  html_notebook:
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
 editor_options:
   chunk_output_type: inline
 ---
@@ -150,7 +150,7 @@ Fill | Fill | Fill | Fill
 
 ## Background on Open Government Data
 
-In May 2009, Data.gov - a web portal for accessing US government datasets - was launched by then federal Chief Information Officer Vivek Kundra. Following this, in December 2009, then US President Barack Obama signed the Open Government Data Directive, requiring that all federal agencies post at least 3 high value datasets on data.gov within 45 day. A few years later in May 2013, Pres. Obama signed an Executive Order to: "M"ak[e] Open and Machine Readable the New Default for Government Information." 
+In May 2009, Data.gov - a web portal for accessing US government datasets - was launched by then federal Chief Information Officer Vivek Kundra. Following this, in December 2009, then US President Barack Obama signed the Open Government Data Directive, requiring that all federal agencies post at least 3 high value datasets on data.gov within 45 days. A few years later in May 2013, Pres. Obama signed an Executive Order to: "Mak[e] Open and Machine Readable the New Default for Government Information." 
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/n603rEnEGXA" frameborder="0" allowfullscreen></iframe>
 
@@ -160,7 +160,7 @@ The Order required that the US Office of Management and Budgeting, in collaborat
 * Data needs to be licensed openly
 * Data needs to be described with metadata
 
-See [here](https://www.whitehouse.gov/sites/whitehouse.gov/files/omb/memoranda/2013/m-13-13.pdf ) for more details. 
+See [the relevant White House memo](https://www.whitehouse.gov/sites/whitehouse.gov/files/omb/memoranda/2013/m-13-13.pdf) for more details. 
 
 Note that these are only requirements for data produced through the federal government. Cities, states, and counties have their own open data programs, policies, and laws, which are sometimes more and sometimes less stringent than the federal policy. However, most open data policies, in some way, deal with the three issues listed above - machine-readability, licensing, and metadata.
 
@@ -218,14 +218,14 @@ Creative Commons is a non-profit organization that aims to increase the availabi
 
 > In the image above, BY means that the license requires that the content creator be attributed whenever the creative work is shared. SA means that the license requires that any derivatives of the original work be given the same license as the original work. NC means that the license restricts the work from being used for commercial purposes. ND means that the license restricts other individuals from modifying the original work. 
 
-See [this](https://data.hartford.gov/Public-Safety/Towed-Cars-for-the-Past-30-Days/hefc-wgp8) dataset of Towed Cars for the Past Thirty Days in Hartford, CT, which has been licensed with the CC0 1.0. 
+See this [dataset of Towed Cars for the Past Thirty Days in Hartford, CT](https://data.hartford.gov/Public-Safety/Towed-Cars-for-the-Past-30-Days/hefc-wgp8), which has been licensed with the CC0 1.0. 
 
 ![Hartford License](images/CT_license.png)
 
-Another open license that meets the criteria listed above is the Open Data Commons Public Domain and Dedication License (PDDL). You can read more about the specifics of this license [here](https://opendatacommons.org/licenses/pddl/1.0/). See [this](https://data.boston.gov/dataset/city-hall-electricity-usage) dataset of City Hall Electricity Usage in Boston, which has been licensed with the PDDL:
+Another open license that meets the criteria listed above is the Open Data Commons Public Domain and Dedication License (PDDL); click here for [specifics about the PPDL](https://opendatacommons.org/licenses/pddl/1.0/). See [dataset of City Hall Electricity Usage in Boston](https://data.boston.gov/dataset/city-hall-electricity-usage), which has been licensed with the PDDL:
 ![Boston License](images/Boston_license.png)
 
-Different cities and states throughout the US will have different laws about the degree to which data should be openly licensed. In most open government data portals, you will be able to discern how data licensed in its administrative metadata - to which we will turn next. 
+Different cities and states throughout the US will have different laws about the degree to which data should be openly licensed. In most open government data portals, you will be able to discern how data licensed in its administrative metadata -- to which we will turn next. 
 
 ### Metadata
 
@@ -234,7 +234,7 @@ Metadata is data about data. There are two kinds of metadata:
 1. Administrative metadata: data about how a dataset is/should be managed
 2. Descriptive metadata: data about what is inside a dataset
 
-Administrative metadata will answer questions such as: 
+**Administrative metadata** will answer questions such as: 
 
 * Who created this data?
 * When did they create it?
@@ -243,7 +243,7 @@ Administrative metadata will answer questions such as:
 * Who published it?
 * Who owns the data, and how is it licensed?
 
-Check out the administrative metadata available for [this](https://data.baltimorecity.gov/Public-Safety/911-Police-Calls-for-Service/xviu-ezkt) open dataset detailing Baltimore 911 Police Calls for Service. Here is a screenshot of the linked page:
+Check out the administrative metadata available for this [open dataset detailing Baltimore 911 Police Calls for Service](https://data.baltimorecity.gov/Public-Safety/911-Police-Calls-for-Service/xviu-ezkt). Here is a screenshot of the linked page:
 
 ![Administrative Open Data](images/admin_metadata.png)
 Under the About this Dataset section on the page, you'll see a number of fields describing the data - how frequently the data is updated, who published the data, who to contact regarding the data, who has rights to use and distribute the data, when the data was created, and when the data was last updated. All of this metadata provides us with information about how this data is managed; in other words, it provides administrative metadata. Why is administrative metadata so important? Here are just a few reasons:
@@ -254,11 +254,11 @@ Under the About this Dataset section on the page, you'll see a number of fields 
 * We need to know who created it in order to understand what perspective the data represents. 
 * Just like when we cite quotes in a paper, we need to cite data when we reference it. All of this information communicates to us how to cite the data. 
 
-As an example of why this is important, consider [this](https://www.denvergov.org/opendata/dataset/city-and-county-of-denver-traffic-accidents) dataset documenting traffic accidents in Denver. There is a long preamble to the data, indicating important information about how the dataset gets updated. Every time an accident occurs it is entered into the dataset. However, when first reported, the Denver Police Department likely does not have all of the information about the accident. That information becomes available through investigations, and as it becomes available, the entries associated with that accident in the dataset are updated. The following disclaimer on the data portal provides important administrative metadata:
+As an example of why this is important, consider this dataset documenting [traffic accidents in Denver](https://www.denvergov.org/opendata/dataset/city-and-county-of-denver-traffic-accidents). There is a long preamble to the data, indicating important information about how the dataset gets updated. Every time an accident occurs it is entered into the dataset. However, when first reported, the Denver Police Department likely does not have all of the information about the accident. That information becomes available through investigations, and as it becomes available, the entries associated with that accident in the dataset are updated. The following disclaimer on the data portal provides important administrative metadata:
 
 > "Incidents that occurred at least 30 days ago tend to be the most accurate, although records are returned for incidents that happened yesterday. For motor vehicle crashes that are still under investigation and involve a serious bodily or fatal injury, some attributes will appear as, "UNDER INVESTIGATION." This is to help ensure that any court proceedings related to these incidents are not inadvertently hindered. Once the investigation is closed, all of the incident's attributes will be visible. This dynamic nature of motor vehicle crash data means that content provided here today will probably differ from content provided a week from now. Likewise, content provided on this site will probably differ somewhat from crime statistics published elsewhere by the City and County of Denver, even though they draw from the same database."
 
-While administrative metadata characterizes how the data is managed, descriptive metadata tells us about the content of a dataset. With descriptive metadata, we should be able to answer questions such as:
+While administrative metadata characterizes how the data is managed, **descriptive metadata** tells us about the content of a dataset. With descriptive metadata, we should be able to answer questions such as:
 
 * How many columns are in the dataset, and how many rows?
 * What does each row represent?
@@ -272,21 +272,25 @@ Check out some of the descriptive metadata for the same Baltimore 911 Police Cal
 
 As part of this basic descriptive metadata, we can see that there are 7.61 million rows in the dataset and 17 columns. We can see that each row (or observation) in the dataset represents a call, and we can see each of the columns (or variables) in dataset that describe a call. 
 
-> This dataset is published in Baltimore's open data portal. Many cities, counties, states, and countries now have their own versions of an open data portal where various government agencies under their jurisdictions publish datasets. You'll notice that many of these portals look very similar. This is because, for the past decade, [Socrata](https://www.tylertech.com/products/socrata) - a company that has designed a data asset management platform specifically for open government - has become a go-to resource for opening government data. A considerable number of open data platforms run on Socrata and will thus look and feel similar.
+> This dataset is published in Baltimore's open data portal. Many cities, counties, states, and countries now have their own versions of an open data portal where various government agencies under their jurisdictions publish datasets. You'll notice that many of these portals look very similar. This is because, for the past decade, [Socrata](https://www.tylertech.com/products/socrata) -- a company that has designed a data asset management platform specifically for open government -- has become a go-to resource for opening government data. A considerable number of open data platforms run on Socrata and will thus look and feel similar.
 
 As we continue our labs we are going to keep coming back to a key point: any count that we produce or any measurement that we produce will always be dependent on how we define what we are counting or measuring. If we are going to count the number of cars on the road, we have to ask: What counts as a car? What will I include in the count and what will I exclude? If we were going to measure the height of a chair, we have to ask: According to what units am I going to measure the height? The numbers that we produce will be shaped by the choices we make regarding data collection. Without documenting those choices, the values won't make much sense to others. Again, we must first define things in order to count or measure them. This is why it is so important that when we share our data, others can look up the definitions that we are using to produce our values. 
 
-With this mind, descriptive metadata is often documented in what is called a data dictionary. Data dictionaries are tools for looking up what various variables and codes in a dataset refer to. With a data dictionary, a data analyst can look up how values were defined much like they would look up the definition of a word in the Oxford English Dictionary. For instance, San Francisco also publishes a dataset documenting [911 Calls for Service] (https://data.sfgov.org/Public-Safety/Police-Department-Calls-for-Service/hz9m-tj6z), and in addition to the information available above, they provide an attachment to a document identifying what number codes and abbreviations in the dataset refer to:
+With this mind, descriptive metadata is often documented in what is called a data dictionary. Data dictionaries are tools for looking up what various variables and codes in a dataset refer to. With a data dictionary, a data analyst can look up how values were defined much like they would look up the definition of a word in the Oxford English Dictionary. For instance, San Francisco also publishes a dataset documenting [911 Calls for Service](https://data.sfgov.org/Public-Safety/Police-Department-Calls-for-Service/hz9m-tj6z), and in addition to the information available above, they provide an attachment to a document identifying what number codes and abbreviations in the dataset refer to:
 
-![attachments](images/SF_attachments.png) ![codes](images/codes.png)
+![attachments](images/SF_attachments.png) 
+
+![codes](images/codes.png)
 
 New Orleans also publishes a version of the [911 calls for service dataset](https://data.nola.gov/Public-Safety-and-Preparedness/Calls-for-Service-2019/qf6q-pp4b). They have created a separate data dictionary document for recording descriptive metadata about the dataset. 
 
-![attachments](images/NO_attachments.png) ![Data Dictionary](images/dd.png)
+![attachments](images/NO_attachments.png) 
 
-> Check out [this](https://fivethirtyeight.com/features/which-cities-share-the-most-crime-data/) really nice piece on FiveThirtyEight, detailing the extent to which different cities and states have made crime data available for public analysis. 
+![Data Dictionary](images/dd.png)
 
-Data dictionaries are often very important for crime data as there are a number of caveats to what can be publicly reported with regards to crime. Consider something I learned while working in NYC. 
+> Check out this really nice piece on FiveThirtyEight, detailing the extent to which different cities and states have made [crime data available for public analysis]((https://fivethirtyeight.com/features/which-cities-share-the-most-crime-data/). 
+
+Data dictionaries are often very important for crime data as there are a number of caveats to what can be publicly reported with regards to crime. Consider the following information from New York City. 
 
 ```{r}
 nyc_arrests <- read.csv("https://data.cityofnewyork.us/api/views/uip8-fykc/rows.csv", stringsAsFactors = FALSE)
@@ -295,18 +299,21 @@ nyc_arrests <- read.csv("https://data.cityofnewyork.us/api/views/uip8-fykc/rows.
 NYC publishes a dataset documenting each arrest, the date it occurred, where it occurred, the crime suspected, and demographic details about the person arrested from the start of the year to the present.
 
 ```{r}
+library(tidyverse)
+
 nyc_arrests %>% head()
 ```
 
-However, for certain crimes, such as rape, sharing the location of where the crime occurred can put individuals at considerable risk. When we filter this data to only represent rape arrests that have occurred in Manhattan, and then map it, you will notice that there are very few locations represented on the graph - 19 at the writing of this lab. 
+However, for certain crimes, such as rape, sharing the location of where the crime occurred can put individuals at considerable risk. When we filter this data to only represent rape arrests that have occurred in Manhattan, and then map it, you will notice that there are very few locations represented on the graph -- 19 at the writing of this lab. 
 
-To view this map, enter the following into your console, and then run the code below:
+To view this map, make sure you have leaflet installed, and then run the code below:
 
-install.packages("leaflet")
+<!-- If you get an error, uncomment and paste the next line into the console: -->
+<!-- install.packages("leaflet") -->
+
 
 ```{r}
 library(leaflet)
-library(tidyverse)
 
 nyc_arrests %>%
   filter(OFNS_DESC == "RAPE" & ARREST_BORO == "M") %>%
@@ -317,17 +324,20 @@ nyc_arrests %>%
 
 Does this mean that only 19 arrests have been made for rapes in Manhattan since the start of the year? It does not. From examining the data documentation, we learn that unlike other crimes in NYC, the location of all rape arrests are geocoded in the dataset to the address of the police station house of the police precinct where the rape occurred. This is to protect the privacy and anonymity of the victim.
 
-Some data dictionaries are very robust, detailing not only what each column refers to, but also the expected type of data in that column, every value that can appear in that column, where data might be missing in that column and why, and information about how the values in that column were generated. Other data dictionaries include much less information, forcing a data analyst to make assumptions about what values mean. Sometimes, a data dictionary is easily accessible with a dataset. However, sometimes, it can be much harder to find descriptive metadata - at times because it is buried within complicated user interfaces, and at other times, because it has not been created at all.
+Some data dictionaries are very robust, detailing not only what each column refers to, but also the expected type of data in that column, every value that can appear in that column, where data might be missing in that column and why, and information about how the values in that column were generated. Other data dictionaries include much less information, forcing a data analyst to make assumptions about what values mean. Sometimes, a data dictionary is easily accessible with a dataset. However, sometimes, it can be much harder to find descriptive metadata -- at times because it is buried within complicated user interfaces, and at other times, because it has not been created at all.
 
-In an ideal world, we would have rich metadata for every dataset published on an open government data portal. Unfortunately, this is rarely the case. The robustness of the data documentation, along with its ease of accessibility, can indicate the extent to which data publishers have prioritized responsible stewardship of the data. It can also indicate the human, financial, and technical resources various governments have available for data management and stewardship. When I worked in NYC, there were some agencies that published dozens of datasets on the open data portal with just one person at their agency responsible for managing the publication and stewardship of all of those datasets, *in addition to that person's other duties*.
+In an ideal world, we would have rich metadata for every dataset published on an open government data portal; unfortunately, this is rarely the case. The robustness of the data documentation, along with its ease of accessibility, can indicate the extent to which data publishers have prioritized responsible stewardship of the data. It can also indicate the human, financial, and technical resources various governments have available for data management and stewardship. Some agencies that publish dozens of datasets on an open data portal employ just one person at their agency responsible for managing the publication and stewardship of all of those datasets, *in addition to that person's other duties*.
 
-Notably, without descriptive metadata, it is much more likely that we will make poor assumptions about what certain terms mean in the data. If you ever find yourself in a situation where you don't know what a term in an open government dataset means, this is where administrative metadata can be important. Before drawing conclusions from the data, you should contact the designated contact person with a detailed message explaining points of confusion in the data. (You may also want to encourage them to document their response in a data dictionary!) In future labs, I will describe a number of examples where we have had to do this in past iterations of this course. 
+Notably, without descriptive metadata, it is much more likely that we will make poor assumptions about what certain terms mean in the data. If you ever find yourself in a situation where you don't know what a term in an open government dataset means, this is where administrative metadata can be important. Before drawing conclusions from the data, you should contact the designated contact person with a detailed message explaining points of confusion in the data. (You may also want to encourage them to document their response in a data dictionary!) <!-- In future labs, I will describe a number of examples where we have had to do this in past iterations of this course.-->
 
 ---
 
 ## Dataset Hopping 
 
-Now you will begin to search for open government or academic datasets related to your chosen topic. Below I have some recommendations to open data portals where students have found  related to their topics in the past. However, I also encourage you to search for data in city and state open data portals.
+Now you will begin to search for open government or academic datasets related to your chosen topic. Below I have some recommendations to open data portals where students have found materials related to their topics in the past. However, I also encourage you to search for data in city and state open data portals.
+
+### Demographics
+* [https://data.census.gov/](https://data.census.gov/)
 
 ### Healthcare
 
@@ -351,13 +361,20 @@ Now you will begin to search for open government or academic datasets related to
 * [https://www.data.gov/](https://www.data.gov/)
 * [https://www.bls.gov/](https://www.bls.gov/) 
 
+### Policing
+* [https://openpolicing.stanford.edu/](https://openpolicing.stanford.edu/)
+* [https://www.policedatainitiative.org/](https://www.policedatainitiative.org/)
+
 ### Environment
 
 * [https://edg.epa.gov/metadata/catalog/main/home.page](https://edg.epa.gov/metadata/catalog/main/home.page)
 
+### Pittsburgh
+* [https://data.wprdc.org/dataset](https://data.wprdc.org/dataset)
+
 Based on your research, fill the datasets most suitable for examining your topic into the chart below. Be sure to respond to each of the questions in the chart. I've included a data dictionary below so that you may reference what each column means. 
 
-### Data Dictionary for Dataset Hopping Chart
+### Data Dictionary for Dataset Hopping Table
 
 * Dataset?: What is the title of the dataset?
 * Found?: Where did you find it? (Provide a link.)
@@ -366,22 +383,23 @@ Based on your research, fill the datasets most suitable for examining your topic
 * Timespan?: What range of time does it cover?
 * Geography? What geographic range does it cover? 
 * Row?: What does each row in the dataset represent?
-* Update?: How often is the dataset updated?
-* Source?: What organization created this dataset? Is this organization reputable?
+* Update_freq?: How often is the dataset updated?
+* Source?: What organization created this dataset? 
+* Source_rep?: Is this organization reputable?
 
 ### Dataset Hopping Chart
 
 I've included an example of a dataset we will use as an example for labs in the first row. 
 
-Dataset? | Found? | Formats? | DD? | Timespan? | Geography? | Row? | Update? | Source?
-------- | ------- | ------- | ------- | ------- | ------- | ------- | -------
-2019 Novel Coronavirus COVID-19 | https://github.com/CSSEGISandData/COVID-19 | .csv | No | Jan 22, 2020 to Present  | Global by Province/Country | Cases per day by Province/Country | Daily | John's Hopkins CSSSE (reputable source)
-Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill
-Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill
-Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill
+Dataset? | Found? | Formats? | DD? | Timespan? | Geography? | Row? | Update_freq? | Source? | Source_rep?
+------- | ------- | ------- | ------- | ------- | ------- | ------- | ------- | -------
+2019 Novel Coronavirus COVID-19 | https://github.com/CSSEGISandData/COVID-19 | .csv | No | Jan 22, 2020 to Present  | Global by Province/Country | Cases per day by Province/Country | Daily | John's Hopkins CSSE (Center for Systems Science and Engineering) | yes: academic research unit
+Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill
+Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill
+Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill | Fill
 
 Note that certain datasets will work better for these assignments than others. When these labs are being completed in the context of one of my courses, I help students determine which datasets are most appropriate for the following assignments. Here are some things that I take into consideration while providing guidance to the student. 
 
-* First, it will be very difficult to complete the following assignments for a dataset that has zero documentation. This does not mean that such datasets don't deserve critical attention. It just means that they deserve a different type of attention than the following labs can afford. 
+* First, it will be very difficult to complete the following assignments for a dataset that has zero documentation. This does not mean that such datasets don't deserve critical attention. It just means that they deserve a different type of attention than the upcoming labs can afford. 
 * Second, these assignments are designed to support engagement with *rectangular datasets* - i.e. datasets that are structured into a series of rows of equal length and columns of equal length. While it can be important to study data structured in other ways, these labs are not designed to support that kind of engagement.
-* Third, these labs will work better for datasets that are at most three-dimensional. What do I mean by this? As we went over in lab 1, each row in a rectangular dataset represents an observation. In one-dimensional data, you should be able to uniquely identify each row in the dataset with just one variable. Every row represents one thing - a hospital, a person, a location, etc. In two-dimensional data, you should be able to uniquely identify each row in the dataset with two variables. For instance, perhaps the dataset is reporting information about a county *each year*. In this case, you would need both the year and the county to uniquely identify each row. In three-dimensional data, you should be able to uniquely identify each row in the dataset with three variables. For instance, perhaps the dataset is reporting information about different policy types in each county in each year. In this case, you would need all three of these variables to uniquely identify this row. We will go over this more in lab 4. For now, you should just keep in mind that data requiring more than three variables to uniquely identify each row will not work well for these labs. 
+* Third, these labs will work better for datasets that are at most three-dimensional. What do I mean by this? As we went over in lab 1, each row in a rectangular dataset represents an observation. In one-dimensional data, you should be able to uniquely identify each row in the dataset with just one variable. Every row represents one thing - a hospital, a person, a location, etc. In two-dimensional data, you should be able to uniquely identify each row in the dataset with two variables. For instance, perhaps the dataset is reporting information about a county *each year*. In this case, you would need both the year and the county to uniquely identify each row. In three-dimensional data, you should be able to uniquely identify each row in the dataset with three variables. For instance, perhaps the dataset is reporting information about different policy types in each county in each year. In this case, you would need all three of these variables to uniquely identify this row. We will go over this more in lab 4. For now, you should just keep in mind that data requiring more than three variables to uniquely identify each row will not work well for these labs. (That said, depending on the data, you might be able to aggregate a higher-dimensional table into a table with one fewer dimension, e.g. by adding results for all years within a particular time span.)
