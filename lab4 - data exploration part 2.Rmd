@@ -1,0 +1,859 @@
+---
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+## Instructions and Overview
+
+In this assignment, we will continue exploring your data by examining
+how values are distributed across observations -- in other words, at
+measures of *variation* -- and how that variation may look different
+when the data is divided into different subsets. We'll look at some
+different ways to summarize observations of individual variables, and
+ways to calculate relationships across variables (though we'll come back
+to that more when we start plotting graphs).
+
+To begin you will need to import and clean a dataset, for which you're
+totally encouraged to use your existing code from lab 3: just extract
+the bits that you actually needed to get your data looking clean and
+ready, with variables in the right classes. **You may, if you wish, work
+together as a group on a shared dataset.** In that case, only one lab,
+on one set of data, needs to be turned in for the whole group. However,
+I expect you to actually work together, so that you all understand what
+your code is doing, and why.
+
+Periodically, I will ask you to pause and connect the coding skills and outputs with the larger questions that led you to your data in the first place. These will take form of the following prompts:
+
+**QUERY**: I'll ask you to write a research question that the adjacent code chunk is designed to be able to answer. Make sure you phrase your question directly in relation to the variables and functions used in the code. Consider this a check on whether you understand what the code is doing. If you are unsure how to compose this question from the code, or the code from the question, you probably want to study the examples and templates more closely. Ask me if you get stuck.
+
+**RESULTS**: Reviewing the output of your code, summarize one thing that you learn about your topic from running this code chunk. In other words, what is one thing that the results of this analysis empirically tell us about the topic? Be specific, considering the geographic, temporal, and topical scope of your data.
+
+**DISCUSSION**: Imagine you are reporting your findings to a decision-maker on your topic. Describe to that decision-maker what is important about this finding -- what it helps you see or say. Consider, also, what new questions your answer raises: What else would we need to know to fully address this question? Knowing what you know about how the data was collected and aggregated, what uncertainties remain in regards to addressing this question? In what ways is the analysis limited by the scope of the data's definitions or categories?
+
+
+## Getting Started
+
+### Load the relevant libraries
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(jsonlite)
+library(readxl)
+```
+
+### Import and clean example datasets
+
+This should look pretty familiar from Lab 3:
+
+```{r}
+# load Hospitals dataset (now with *all* the rows, sigh)
+hospitals <- fromJSON("https://opendata.arcgis.com/datasets/6ac5e325468c4cb9b905f1728d6fbf0f_0.geojson")
+hospitals_data <- hospitals$features$properties
+
+# convert NA-like values to NA
+hospitals_data <- na_if(hospitals_data, "NOT AVAILABLE")
+hospitals_data <- na_if(hospitals_data, -999)
+
+# convert date-like values to dates
+hospitals_data$SOURCEDATE <- parse_date_time(hospitals_data$SOURCEDATE, orders = "ymd HMS")
+hospitals_data$VAL_DATE <- parse_date_time(hospitals_data$VAL_DATE, orders = "ymd HMS")
+
+
+# load COVID-19 dataset
+cases <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
+
+# rejoice that the Covid-19 data is already tidy, with variables in the right formats!
+
+```
+
+### Your turn
+
+Gather the code you or a partner wrote in lab 3 to import and clean your
+dataset, and paste it into the chunk below.
+
+```{r}
+# Once you're code's pasted below, run the chunk to load your data into R's memory and clean it up.
+
+
+
+```
+
+## Selecting one variable to explore and summarize
+
+Many governmental open datasets contain large numbers of variables, and
+as you've probably noticed, it's not so easy to display 90 some-odd
+columns of data, let alone to make heads or tails of it. Using a data
+dictionary, though, you can usually identify a smaller handful of
+variables that might address the questions that led you to this dataset
+in the first place.
+
+To select a column, we can use the dplyr function `select()`. (You can
+see why they named it that.) In the hospitals dataset, for instance,
+maybe we wanted to know more about the number of beds hospitals
+typically have. Here's one way we could find out:
+
+```{r}
+# Template:
+# DATASET %>%                                      # start wide
+#   select(QUANTITATIVE_VARIABLE) %>%              # zoom in on columns
+#   summary()                                      # basic distribution stats
+
+hospitals_data %>% 
+  select(BEDS) %>% 
+  summary()
+
+```
+
+Remember from lab 2 that the `%>%` command is a pipe that lets you flow
+one dplyr command after another. Here, we start with the `select()`
+command to grab one variable, and pass the resulting vector to the
+`summary()` command from base R. This summary gives you a number of
+statistics suitable for *quantitative* variables: two measures of
+centrality, mean and median, and some measures of distribution,
+including the minimum and maximum. The 1st and 3rd quartiles are like
+the median: they express the value halfway between the median and the
+minimum and maximum, respectively, when the observations are arrayed in
+order. (To learn more about `summary()`, try entering `?summary` at the
+console.)
+
+Here, then, we can see that every hospital has at least 2 beds, and at
+least one has as many as 1,592 beds; the median hospital has 77, but the
+mean is higher, suggesting a somewhat skewed distribution, with a wider
+variance in the upper range than the lower. We can also see that 307
+hospitals don't have the number of beds given in the dataset.
+
+If you're curious whether that's a lot of NAs, remember that we can find
+the number of rows with `nrow()`:
+
+```{r}
+nrow(hospitals_data)
+```
+
+For categorical variables, which don't have the same kind of
+distribution, the `summary()` command isn't that helpful; all it can
+tell us is how many values there are. But a related command, `table()`,
+will give us the frequency counts of each value in the category.
+
+```{r}
+# Template:
+# DATASET %>%                                      # start wide
+#   select(CATEGORICAL_VARIABLE) %>%               # zoom in on columns
+#   table()                                        # counts instances of each value
+  
+hospitals_data %>% 
+  select(OWNER) %>% 
+  table()
+```
+
+By default, the output of `table()` will be sorted alphabetically. But
+**for exploring data patterns, alphabetical sorting is often no better
+than random**: to compare values, you have to jump around from place to
+place, with the risk that you'll miss something. So unless there's some
+compelling reason we expect the data to correlate with the alphabet, or
+if you're building an index people will come to to look up specific values
+they know in advance, it usually makes more sense to **sort by some
+quantitative value**, whether increasing or decreasing. This makes
+comparisons, and especially pattern-detection, much easier.
+
+For frequency tables, we can sort by frequency using another base R
+function, `sort()`. Note that you can set a parameter, `decreasing`, to
+either false or true; for more options and default settings, see
+`?sort`. (You're getting the hang of that now, right?)
+
+```{r}
+# Template:
+# DATASET %>%                                      # start wide
+#   select(CATEGORICAL_VARIABLE) %>%               # zoom in on columns
+#   table() %>%                                    # counts instances of each value
+#   sort()                                         # put values in a sensible order
+  
+hospitals_data %>% 
+  select(OWNER) %>% 
+  table() %>%
+  sort(decreasing = T)
+```
+
+Now it's immediately clear that non-profits form the largest category of
+hospital ownership in the dataset, that proprietary hospitals are the
+second-largest (with about half as many), and that relatively few
+hospitals are federally owned -- and fewer still operate as LLC's.
+
+Note that if you wanted to save this table, you could bind the whole
+string of commands to a variable with `<-`:
+
+```{r}
+# Template:
+# LOCAL_VARIABLE <-                                  # pick a name where you'll save the output
+#   DATASET %>%                                      # start wide
+#     select(CATEGORICAL_VARIABLE) %>%               # zoom in on columns
+#     table() %>%                                    # counts instances of each value
+#     sort()                                         # put values in a sensible order
+    
+owner_counts <-                                   
+  hospitals_data %>% 
+  select(OWNER) %>% 
+  table() %>%
+  sort(decreasing = T)
+
+bed_stats <- 
+  hospitals_data %>% 
+  select(BEDS) %>% 
+  summary()
+```
+
+(Experienced programmers, notice that R isn't fussy about whitespace,
+even linebreaks. If a statement isn't finished, the parser just keeps
+going until it's able to stop. On the other hand, that means if you're
+not careful with parentheses or brackets, you might find R trying to
+digest the entire rest of your file! If that happens, just hit escape
+and look for the typo shortly after where you started.)
+
+Remember that assigning a variable won't produce a visible output, but
+you should see the new variable `owner_counts` appear in your
+Environment pane.
+
+### Pause for reflection
+
+To make sure we're connecting code chunks like those above to the larger
+questions they're meant to answer, I want to periodically stop and think
+about why we're doing the analysis: what we're doing (our *query*), what
+we're learning (a *result*), and what that might imply, or what it makes
+us wonder (a *discussion*).
+
+**Query**: The owner_counts analysis above will help us answer the
+question, "What ownership models are more and less common among
+hospitals in US states and territories?"
+
+**Result**: The analysis demonstrates that most hospitals are
+businesses, with more of those businesses run as non-profit than
+for-profit (proprietary); government ownership is less common, but when
+the government is the owner, it's more likely to be a district or local
+government than a larger governmental unit like the state or the country
+(federal).
+
+**Discussion**: These results make me wonder whether the balance between
+non-profit and for-profit hospital ownership has changed over time. To
+find out, I would need historical versions of this dataset. I also
+wonder whether some states' governments are more likely to own hospitals
+than others.
+
+### Your turn
+
+Look over the variables in your dataset, using a data dictionary so you
+know what you're looking at. What categories are you curious about? What
+quantitative variables? Get a summary of at least one of each by filling
+in the templates below with your own code. (Remember to replace the
+ALL_CAPS entries with terms relevant to your own dataset.) If you're not
+sure what the variable names are stored as in R, you can try
+`names(DATASET)`.
+
+```{r}
+# Template:
+# DATASET %>%                                      # start wide
+#   select(CATEGORICAL_VARIABLE) %>%               # zoom in on columns
+#   table() %>%                                    # counts instances of each value
+#   sort()                                         # put values in a sensible order
+
+
+```
+
+```{r}
+# Template:
+# DATASET %>%                                      # start wide
+#   select(QUANTITATIVE_VARIABLE) %>%              # zoom in on columns
+#   summary()                                      # basic distribution stats
+
+
+```
+
+### Pause for reflection
+
+Look back at the code you just wrote. Can you say back what you're
+doing with that code (your *query*), what you're learning (a *result*),
+and what that might imply, or what it makes you wonder (a *discussion*)?
+
+Fill in your responses below:
+
+> **Query**:\
+> \
+> **Result**:\
+> \
+> **Discussion**:
+
+## Zooming in to Explore Filtered Data
+
+Often in data exploration, we do not just want to examine the dataset as
+a whole, but also to examine how values, calculations, and plots change
+when we zoom in to one specific set of observations in the dataset. The
+dplyr function `filter()` lets us explore only those observations that
+meet a particular set of criteria.
+
+
+### Filtering to Produce Like-to-Like Comparisons
+
+For some of you, filtering your data will be necessary before performing
+*any* operations -- even basic summaries -- across numeric variables in
+your dataset. This is because some of your datasets have observational
+units that span multiple time periods, multiple geographies, or multiple
+issues. Before performing an operation across a numeric variable, we
+need to ensure all of the values in that variable are referring to
+observations reported across the same timeframe or geographic scale.
+
+In the hospitals dataset, this is less of a concern because (as
+discussed in lab 3) the observational unit of the dataset is one thing
+-- a hospital. The BEDS variable is always going to refer to the number
+of BEDS at a hospital. This means that the hospitals dataset is
+*one-dimensional.*
+
+With the cases data, we saw in the last lab that every observation
+refers to combination of a county, state, and date. There are three
+variables that make up the unique key, or in other words, the cases
+dataset is *three-dimensional.* Let's say that we wanted to call
+`summary()` on the cases variable to compare the number of COVID cases
+across counties. Without first zooming in to to a specific date and
+state, we would be including multiple values taken at the same place at
+different times, and we'd dramatically overcount cases in each location.
+
+We can instead use a calculation to filter the data by only the most
+recent date and one place, and then call `summary()`. 
+
+```{r}
+# Filtering by state and the most recent date
+
+cases %>%
+  filter(date == max(date, na.rm = TRUE) & 
+         state == "Pennsylvania") %>% 
+  select(cases) %>%
+  summary()
+```
+
+```{r}
+# We may want to check that the counties don't repeat when these filters are in place:
+county_count <- cases %>%
+  filter(date == max(date, na.rm = TRUE) & 
+         state == "Pennsylvania") %>%
+  distinct(county) %>%
+  nrow()
+
+pa_count <- cases %>%
+  filter(date == max(date, na.rm = TRUE) & 
+         state == "Pennsylvania") %>%
+  nrow()
+
+county_count == pa_count
+```
+
+Note that we use the `==` (double-equals) operator within the `filter()`
+function to check when a variable has a given value. The doubling is
+important: a single `=` would *assign* the value.
+
+
+### Your turn
+
+Remind yourself of how much you'll need to zoom in to statistically
+analyze numeric values your data. Think of the variables that make up
+the unique key in your dataset. If you have more than one variable in
+your unique key, make sure that each is represented in your statement
+below.
+
+```{r}
+# Uncomment the line associated with your dataset and fill in the blank. Then run the code.
+
+# Template:
+# paste(df$NUMERIC_VARIABLE[1], "refers to a number/measure of [FILL NUMERIC VARIABLE] in a _____ in my dataset.")
+
+# Examples:
+paste(hospitals_data$BEDS[1], "refers to a number of beds in a hospital in my dataset.")
+paste(cases$cases[1], "refers to a number of cumulative cases in a county and state on a given day in my dataset.")
+
+# Your turn:
+#paste(_____$_____[1], "refers to a number of _____ in a _____ in my dataset.")
+```
+
+How did you fill in the last blank?
+
+Is your observational unit one thing (e.g. one hospital, or one
+country)? If this is the case, it will likely not be as essential for
+you to zoom in before operating on numeric variables because you are
+working with one-dimensional data.
+
+OR
+
+Is your observational unit a combination of things or factors (e.g. one
+chemical reported at a particular facility or one census tract reporting
+in a particular year)? If this is the case, it will likely be essential
+for you to zoom in before operating on numeric variables because you
+will be working with multi-dimensional data.
+
+If you are working with multi-dimensional data, in some places
+throughout this lab, you will need to filter your data to particular
+observations before analyzing across a variable. This is because we will
+be summarizing information across groups of data, and it will be
+important to ensure that you are summarizing information across like
+observations.
+
+Perhaps you will filter to the most recent year, so that
+you can compare observations across geographies in that year. Or perhaps
+you will filter to a particular geography, so that you can compare
+observations across time in that geography. Or perhaps you will filter
+to a particular diagnosis group, so that you can compare costs across
+hospitals for that diagnosis. Or perhaps you will filter to a particular
+year and family type so that you can compare observations across
+counties in that year for that family type. Characterize one way you
+might filter your data below. Be specific. Which variable in the dataset
+will you filter on and to what value(s) will you filter it to?
+
+```{r}
+# Uncomment and fill in the blanks.
+
+# message("In order to summarize coherent data, I will be filtering based on the ______ variable; I can filter it to ______.")
+```
+
+If you realize now that your calculations above were including unlike observations, copy those chunks here again, and this time, add the filter you just proposed.
+
+
+### Filtering to a Category
+
+In the hospitals dataset, suppose we wanted to know whether the ownership model had an influence on the number of beds.
+
+**Query**: Do non-profit hospitals generally have more or less capacity
+than average within this dataset?
+
+```{r}
+# Template:
+# DATASET %>%                                      # start wide
+#   filter(CATEGORICAL_VARIABLE == "VALUE") %>%    # zoom in on rows   
+#   select(QUANTITATIVE_VARIABLE) %>%              # zoom in on columns
+#   summary()                                      # basic distribution stats
+
+hospitals_data %>% 
+  filter(OWNER == "NON-PROFIT") %>% 
+  select(BEDS) %>%
+  summary() 
+
+# And let's compare that to the overall dataset:
+bed_stats
+
+```
+
+**Result**: So far it looks fairly similar: it spans the same overall
+range. But the mean and median number of beds at non-profit hospitals is
+a little higher than the overall dataset.
+
+**Discussion**: Wait, wasn't the non-profit segment of the dataset the
+largest? Maybe the numbers are only a little bit off because we're
+including the sample in our control. We should try again with the
+non-profit hospitals removed.
+
+To use `filter()` to exclude one value, we can use the "not equal"
+operator, `!=`:
+
+```{r}
+# Template:
+# DATASET %>%                                      # start wide
+#   filter(CATEGORICAL_VARIABLE != "VALUE") %>%    # zoom in on rows by *excluding* some  
+#   select(QUANTITATIVE_VARIABLE) %>%              # zoom in on columns
+#   summary()                                      # basic distribution stats
+
+hospitals_data %>% 
+  filter(OWNER != "NON-PROFIT") %>% 
+  select(BEDS) %>% 
+  summary()
+```
+
+**Result**: The mean and median both drop compared to the overall
+dataset, as do the first and third quartiles. The whole distribution has
+shifted down.
+
+**Discussion**: Non-profit hospitals, as a population, do seem to have
+more beds than other hospitals, taken together. However, we can't infer
+from that general trend to any individual hospital: the range of bed
+counts still includes the lowest value (2), and at least a quarter of
+the non-profit hospitals have fewer beds than the median non-non-profit
+hospital.
+
+### Your turn
+
+Look again at your dataset, thinking now about how a quantitative variable might vary across different categories within your data. NB: To see all the available values of a categorical variable, even if your data dictionary didn't give them to you, you can use the **`distinct()`** function:
+
+```{r}
+# Template:
+# DATASET %>%
+#   select(CATEGORICAL_VARIABLE) %>%
+#   distinct()
+
+
+```
+
+Then practice writing a query, some code to convert that query to an R analysis, and
+some reflections on what it gets you.
+
+Fill in your responses below:
+
+> **Query**:
+
+```{r}
+# Template:
+# DATASET %>%                                      # start wide
+#   filter(CATEGORICAL_VARIABLE == "VALUE") %>%    # zoom in on rows   
+#   select(QUANTITATIVE_VARIABLE) %>%              # zoom in on columns
+#   summary()                                      # basic distribution stats
+
+```
+
+> **Result**:
+>
+> **Discussion**:
+
+
+### Filtering to Numeric Observations Above or Below a Threshold
+
+Suppose we wanted to do a little follow-up on those bed counts. Given
+the way the trend is to have more beds in non-profit hospitals, what's
+happening in non-profit hospitals with low bed counts? Are they located
+in any particular places? Are they mostly of the same type?
+
+In the next code chunk, notice how we can `filter()` rows on *multiple*
+variables, separated with ampersands, and `select()` any number of
+columns, separated with commas. Also, because we're only looking at
+Non-Profit hospitals, I've decided to exclude the OWNER variable from
+the output: they'd otherwise all be the same value.
+
+```{r}
+# Template:
+# DATASET %>%
+#   filter(CATEGORICAL_VARIABLE == "VALUE" & 
+#          NUMERICAL_VARIABLE < QUANTITATIVE_VARIABLE) %>%
+#   select(VARIABLES_OF_INTEREST)
+  
+hospitals_data %>% 
+  filter(OWNER == "NON-PROFIT" & 
+         BEDS < 25) %>% 
+  select(BEDS, TYPE, STATE, COUNTRY, STATUS)
+```
+
+Can you tell what order those results are in? Then you have better eyes
+than I do. We can't use `sort()` on a full data.frame or tibble, because
+the multiple columns confuse its algorithm. Instead, we can use the
+dplyr function `arrange()` to provide a list of columns to sort by,
+first one, then the next to break ties, and the next to break new ties,
+etc. By default, the order will be ascending; if we want any one
+variable to sort greatest to least (or Z to A), we can wrap it in
+`desc()` within the list inside `arrange()`. (For more clarity, you may
+want to check `?arrange`.)
+
+```{r}
+
+# Template:
+# DATASET %>%                                                   # start wide
+#   filter(CATEGORICAL_VARIABLE == "VALUE" &                    # zoom in on rows that meet 
+#          NUMERICAL_VARIABLE < QUANTITATIVE_VARIABLE) %>%      # all these criteria
+#   select(VARIABLES_OF_INTEREST) %>%                           # zoom in on columns
+#   arrange(FIRST_SORT_VARIABLE, SECOND_SORT_VARIABLE, ETC)     # sort rows based on chosen sequence of columns
+
+hospitals_data %>% 
+  filter(OWNER == "NON-PROFIT" & 
+         BEDS < 25) %>% 
+  select(BEDS, TYPE, STATE, COUNTRY, STATUS) %>%
+  arrange(BEDS, TYPE, COUNTRY, STATE, STATUS)
+```
+
+> Check your understanding: which of the questions above did I explore
+> with this last code chunk? At what point can you tell? \
+> **Query**: \_\_\_\_
+
+**Results**: Not much of a pattern on the face of it, though I notice
+that "CRITICAL ACCESS" and "GENERAL ACUTE CARE" seem to come up more
+often than others.
+
+**Discussion**: This might lead me to look back (or look up) the
+definitions of those two hospital categories: is there a limit to the
+number of beds they can have to qualify for that classification? I might
+also want to see summaries of the data across these different hospital
+types.
+
+### Your turn
+
+Look again at your dataset, thinking now about your quantitative
+variables, and what threshold values might be meaningful to explore.
+Then practice writing a query, some code to convert that query to an R
+analysis, and some reflections on what it gets you.
+
+Fill in your responses below:
+
+> **Query**:
+
+```{r}
+# Template:
+# DATASET %>%                                                   # start wide
+#   filter(CATEGORICAL_VARIABLE == "VALUE" &                    # zoom in on rows that meet 
+#          NUMERICAL_VARIABLE < QUANTITATIVE_VARIABLE) %>%      # all these criteria
+#   select(VARIABLES_OF_INTEREST) %>%                           # zoom in on columns
+#   arrange(FIRST_SORT_VARIABLE, SECOND_SORT_VARIABLE, ETC)     # sort rows based on chosen sequence of columns
+
+
+
+
+```
+
+> **Result**:
+>
+> **Discussion**:
+
+
+## Summarizing multiple groups at the same time
+
+At times, we are seeking to get a broader picture of what's going on in
+our dataset than provided -- grouping observations that share a common
+value and then performing a calculation to summarize something within
+each of those groups. In other words, sometimes we want to see our data
+in *aggregate*. For instance, I may want to know the total number of
+hospital beds per state. To calculate this, I would need to group all of
+the hospital observations by state and then sum the total number of beds
+in each group.
+
+In such cases, we can call **`group_by()`** to aggregate the
+observations with common variable values into groups. Then we will call
+**`summarize()`** to perform a calculation within each of those groups.
+The `summarize()` function takes a set of values and a calculation
+method and returns a single value. For instance, if we call
+`summarize()` with a numeric column in our dataset and "mean" as a
+calculation method, it will return the average of all the numeric values
+in that column. When called in conjunction with `group_by()`,
+`summarize()` takes a set of values for each group and a calculation
+method and returns a single value for each group.
+
+For the hospitals dataset, we will group the observations by STATE and
+then use summarize to calculate the sum of BEDS per state. Each of the
+parameters within `summarize()` defines a new column, using the
+structure *col_name = method(inputs_to_method)*. NB: this uses a single
+equals sign (`=`), because we're assigning a value, rather than a double
+equals sign (`==`) as when we're testing whether two values are the
+same.
+
+Notice as well how we are choosing to ignore NA values above by calling
+`na.rm = TRUE`. When we do so, we need to keep in mind that we are not
+summarizing across all observations in the dataset, but only those for
+which there is a value listed in the variable we are operating on.
+Because of this, we also calculate the number of observations in each
+group, the number of observations where the BEDS variable is missing,
+and use those to calculate the percentage of observations in the group
+where the variable is missing. This provides important context for how
+readily we can rely on these numbers. For instance, when you run the
+code below, note how in military hospitals, the number of beds are
+missing for 34% of the observations.
+
+```{r}
+#Run this code chunk.
+
+# Template:
+# DATASET %>% 
+#   group_by(CATEGORICAL_VARIABLE) %>% 
+#   summarize(NEW_VARIABLE_NAME = CALCULATION %>%
+#   ungroup() %>%
+#   arrange(SORTING_VARIABLES)
+
+hospitals_data %>% 
+  group_by(TYPE) %>% # Group observations by the TYPE variable
+  summarize(
+    # Calculate summary stats of BEDS within each TYPE group
+    MIN_BEDS = min(BEDS, na.rm = TRUE),
+    MEDIAN_BEDS = median(BEDS, na.rm = TRUE), 
+    MAX_BEDS = max(BEDS, na.rm = TRUE),
+    
+    # Calculate how many observations are in each TYPE group
+    OBSERVATIONS = n(), 
+    
+    # Calculate how many NAs are in the BEDS variable in each TYPE group
+    MISSING_BEDS = sum(is.na(BEDS)), 
+    
+    # Divide the two values you just calculated to determine the percent of missing data
+    PERCENT_MISSING = MISSING_BEDS / OBSERVATIONS * 100
+  ) %>% 
+  ungroup() %>%
+  arrange(desc(MEDIAN_BEDS))
+```
+
+Notice that I followed the `summarize()` call with **`ungroup()`** before using `arrange()`. When we `group_by()` a variable, any subsequent function calls will continue to be performed on the grouped data, unless we `ungroup()` it. This can also be important if we want to filter to specific values after we `summarize()` the data. Assuming that we don't want to perform a filter operation within each group, but on the entire new dataframe created after summarizing, we need to `ungroup()` the data before performing the `filter()` operation. (But note also that if we *do* want to filter within each group, we can: just leave the `ungroup()` out.)
+
+**Results**: From the function above, we see that Critical Access hospitals have both the lowest median and maximum numbers of beds, while General Acute Care hospitals span the full range of bed counts. This starts to make more sense when we go back to the data dictionary, and learn that in fact the Critical Access classification is supposed to include a maximum of 25 beds, while General Acute Care is one of the more open classifications (it does say "general", after all). That does raise another question, which we may want to pursue: what's up with the Critical Access hospital with 286 beds?
+
+```{r}
+# Do you remember how to write an analysis that would filter just Critical Access hospitals with more than 25 beds? Try to fill it in here:
+
+
+
+```
+
+Depending on our purposes in examining hospitals, we might also be
+interested in summing all the values within groups. For instance, if I'm
+wondering how much hospital infrastructure is available to support
+Covid-19 patients, one factor (of a number of factors) I need to
+consider before presenting this data is how many of which types of
+hospitals are accepting Covid-19 patients, and where they are. Are
+rehabilitation hospitals accepting patients? Psychiatric hospitals?
+Military hospitals? If they aren't now, will they at some point?
+Further, some states have talked about cordoning off hotels for Covid-19
+patients. How do we account for this change in the number of hospital
+beds (something definitely not represented in our data, based on the way
+hospital has been defined). We would need to do external research to
+answer these questions. Then we may wish to filter our data to relevant
+hospital types. For instance, at this moment, we may filter our data to
+only include beds at General Acute Care Hospitals. We also know that
+some hospitals in the dataset are closed. We should also filter these
+out before presenting the data. Notice how below, I can add this filter
+statement before grouping the data. This time, let's see how many total
+General Acute Care beds there are in each state.
+
+```{r}
+# Template:
+# DATASET %>%
+#   filter(FILTERING_VARIABLE == "VALUE") %>%
+#   group_by(CATEGORICAL_VARIABLE) %>%
+#   summarize(NEW_COLUMN_1 = CALCULATION_1_BASED_ON_EXISTING_DATA,
+#             NEW_COLUMN_2 = CALCULATION_2_BASED_ON_EXISTING_DATA,
+#             ETC) %>%
+#   ungroup()  %>%
+#   arrange(SORTING_VARIABLES)
+
+hospitals_data %>% 
+  filter(TYPE == "GENERAL ACUTE CARE" & STATUS == "OPEN") %>%
+  group_by(STATE) %>%              # Group observations by state
+  summarize(
+    STATES_BEDS = sum(BEDS, na.rm = TRUE), #Calculate the sum of BEDS within each STATE group
+    OBSERVATIONS = n(), #Calculate how many observations are in each STATE group
+    MISSING_BEDS = sum(is.na(BEDS)), #Calculate how many NAs are in the BEDS variable in each STATE group
+    PERCENT_MISSING = sum(is.na(BEDS))/n()*100) %>% #Divide the two values you just calculated to determine the percent of missing data
+  ungroup() %>%
+  arrange(desc(PERCENT_MISSING))   # sort by missing values on top, just to confirm they're there
+```
+
+Notice how, to answer questions within a dataset, we often need to both
+zoom in and out on data -- homing in on certain observations and then
+generalizing across them. We cannot answer questions well if we don't
+have a good understanding of what's included in our data and how issues
+are defined. Had we not known that closed hospitals and hospitals that
+are classed as rehabs or psychiatric facilities were included in the
+data, we may have made some poor assumptions about the number of beds
+available. Also note how, in every step of data analysis, we have to
+make decisions about what to include and what to exclude in the
+analysis. Data analysts play a very active role in shaping the knowledge
+that gets produced from data. The numbers can never speak for
+themselves.
+
+### Your turn
+
+Look again at your dataset, and this time choose two variables: one to
+group by, and one to explore variability within and across groups. What
+kinds of changes might you expect to see? It's good to have hunches, but
+remember to be open to surprise.
+
+With the above in mind, practice writing a query, some code to convert
+that query to an R analysis, and some reflections on what it gets you.
+
+Fill in your responses below:
+
+> **Query**:
+
+```{r}
+# Template:
+# DATASET %>%
+#   filter(FILTERING_VARIABLE == "VALUE") %>%                       # narrow the set if need be
+#   group_by(CATEGORICAL_VARIABLE) %>%                              # split into groups
+#   summarize(NEW_COLUMN_1 = CALCULATION_1_BASED_ON_EXISTING_DATA,  # summarize within groups
+#             NEW_COLUMN_2 = CALCULATION_2_BASED_ON_EXISTING_DATA,
+#             ETC) %>%
+#   ungroup()  %>%                                                  # put it all back together
+#   arrange(SORTING_VARIABLES)                                      # choose a row order
+
+
+
+
+```
+
+> **Result**:
+>
+> **Discussion**:
+
+## Building New Variables from Old
+
+The calculations performed by `summarize()`, because they work within groups, collapse the rows of your data: even after ungrouping, you're left with only one row per group. When you want to perform calculations based on individual rows, and store the results in a new column, use dplyr's **`mutate()`** function. It works in essentially the same way as `summarize()`, but without the `group_by`:
+
+```{r}
+# Template:
+# DATASET %>%
+#   filter(FILTERING_VARIABLE == "VALUE") %>%                       # zoom in on rows if need be
+#   mutate(NEW_COLUMN_1 = CALCULATION_1_BASED_ON_EXISTING_DATA,     # calculate within rows
+#          NEW_COLUMN_2 = CALCULATION_2_BASED_ON_EXISTING_DATA,
+#          ETC) %>%
+#   select(VARIABLES_OF_INTEREST) %>%                               # zoom in on columns
+#   arrange(SORTING_VARIABLES)                                      # choose a row order
+
+cases %>%
+  filter(date == max(date, na.rm = TRUE)) %>%
+  mutate(deaths_per_100_cases = round((deaths / cases * 100), 2)) %>%
+  select(deaths_per_100_cases, cases, deaths, date, county, state) %>%
+  arrange(desc(deaths_per_100_cases))
+
+```
+**Query**: Where are people dying of COVID at the highest rates? That is, where is the ratio of deaths to cases the highest?
+
+**Results**: It's kind of thrilling to know there are some places in the country that have reported 0 COVID cases... but it's also a little suspicious, like: are they just not reporting them? Apart from the infinite divide-by-zero error states, from the way this is calculated, it looks like North Dakota and Puerto Rico top the list for deaths per case count.
+
+**Discussion**: However, that appearance is probably deceiving, because people reporting a new positive COVID test are probably not the same people dying that day: the news has been saying since the pandemic began that death counts tend to lag case counts by about two weeks. So in an ideal world, we would want to do some more offsetting (see `?dplyr::lead`) and maybe even smoothing before making any claims about the state of these states. 
+
+
+As shown in the example above, `mutate()` can be very useful for calculating ratios and other relationships among existing variables. We'll talk more about *covariation* in the next lab, when we start making some simple graphs.
+
+
+## Merging Several Data Frames into One
+
+One final special case I want to introduce is when the data you need to calculate your mutated or summarized variables is in another dataset. Suppose, for example, that I wanted to know what portion of the population had contracted COVID in a given state. The NY Times dataset doesn't say what the state populations are... but the Census Bureau knows. (Well, technically, we're still working off 2019 estimates. But still.)
+
+```{r}
+# load US/Region/State Population dataset from [census.data.gov](https://www.census.gov/data/tables/time-series/demo/popest/2010s-state-total.html)
+# using excel tempfile workaround for remote data:
+url <- "https://www2.census.gov/programs-surveys/popest/tables/2010-2019/state/totals/nst-est2019-01.xlsx"
+tf = tempfile(fileext = ".xlsx")
+curl::curl_download(url, tf)
+statepop <- read_excel(tf, skip=4, col_names = c("Area", "2010_Census", "Estimates_Base", paste("estimate", 2010:2019, sep="_")))
+
+# clean up a bit
+file.remove(tf); rm(tf)
+statepop$Area <- str_remove(statepop$Area, "[.]")   # removes leading periods in state names
+
+# Preview the data
+head(statepop, 10)
+
+```
+
+What we want to do is take our existing COVID `cases` data and add the 2019 estimate of population, in `statepop`, for every state that matches -- and none that don't. We can use the base R function `merge()`:
+
+```{r}
+# First, filter to the values we want to use
+recent_cases <- 
+  cases %>% 
+    filter(date == max(date, na.rm = TRUE))
+
+statepop_2019 <- 
+  statepop %>%
+    select(Area, estimate_2019)
+
+# Then put them both together
+recent_cases <- 
+  merge(x = recent_cases,            # our "left" data frame
+      y = statepop_2019,             # our "right" data frame
+      by.x = "state",                # which column from the left should we use to match on?
+      by.y = "Area",                 # which column from the right should we use to match on?
+      all.x = TRUE,                  # keep all rows from the left, whether they match or not
+      all.y = FALSE)                 # discard non-matching rows from the right: keep only matches
+
+```
+
+County-level data might be even better, but the Census Bureau website was a bit of a nightmare, so that'll have to wait for another day. A data-writer's work is never done!
+
+NB: For more complex merges, where you have to match multiple columns to guarantee distinct results, try the dplyr method `left_join()`; see the [online documentation page](https://dplyr.tidyverse.org/reference/mutate-joins.html) for information and examples.
+
+

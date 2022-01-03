@@ -1,0 +1,199 @@
+## Introduction
+
+At the end of Lab 4, I wanted to merge in county-level population data, to get a sense of what fraction of people were getting sick or dying. It got... complicated. What follows is a walkthrough of the problems I faced and how I solved them.
+
+### Load the relevant libraries
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(jsonlite)
+library(readxl)
+```
+
+### Load the relevant datasets
+
+```{r}
+
+# Set 1: COVID-19 dataset
+cases <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
+
+# rejoice that the Covid-19 data is already tidy, with variables in the right formats!
+```
+
+So far so good. And now: the complications begin. I found population estimate data only after searching outside of the Census Bureau website, which led me [a web page with a spreadsheet indexing other data files](https://www.census.gov/data/tables/time-series/demo/popest/2010s-state-total.html). Reading that file in Excel got me the URL below.
+
+
+```{r}
+# Set 2: county-level population estimates
+
+# Use temp-file workaround for remote Excel files
+url <- "https://www2.census.gov/programs-surveys/popest/tables/2010-2019/counties/totals/co-est2019-annres.xlsx"
+tf = tempfile(fileext = ".xlsx")
+curl::curl_download(url, tf)
+
+# first pass: keep it simple, see what we get
+countypop <- read_excel(tf)
+
+# check structure
+head(countypop, 15)
+```
+
+Observations: the first four rows are header information, not rectangular data. The column names seem to be in multiple rows, so they'll need to be explicitly specified in the call to `read_excel()`. (Note that I could have figured this out by opening the file in Excel, too, but putting it in R lets me show you what went down.)
+
+With those observations, we can improve the import:
+```{r}
+# Set 2, take 2
+countypop <- read_excel(tf, 
+                        skip=4,   
+                        col_names = c("Area", "2010_Census", "Estimates_Base",
+                                      paste("estimate", 2010:2019, sep="_")))
+
+# check structure
+head(countypop, 15)
+tail(countypop, 10)
+```
+
+Progress! But some cleanup is still needed.
+```{r}
+
+# remove leading periods in county names
+countypop$Area <- str_remove(countypop$Area, "[.]")   
+
+# split Area column at first comma, add State column
+countypop <- countypop %>%
+  separate(Area, c("Area", "State"), sep=",")       
+
+# remove extra whitespace created by `separate()`
+countypop$State <- countypop$State %>%
+  str_trim()                     
+
+# remove last 6 rows, which are notes, not data; found via warning messages from `separate()`
+countypop <- countypop %>% 
+  slice(1:(n()-6))     
+
+# check structure
+head(countypop, 10)
+tail(countypop, 10)
+
+```
+
+And now I think we finally have Set 2 imported! (Next time, it'll be easier: we won't need to stop and check heads and tails, and we'll already know how much to skip.)
+
+### Try the merge
+
+Note that county names can repeat across states:
+
+```{r}
+countypop %>%
+  filter(Area == "Orange County")
+```
+
+So to merge with our Covid data, we'll have to match on the *combination* of county and state. Base R merge has trouble with multi-column merge, so let's try the dplyr approach this time. With simple cases, you can just specify which column names are supposed to match, joining the list of pairs using `c()`. (You remember `c()` from Lab 2, right? For concatenating?)
+
+```{r}
+countypop_2019 <- 
+  countypop %>%
+  select(Area, State, estimate_2019)
+
+left_join(cases,                                 # the data.frame on the "left" 
+          countypop_2019,                        # the data.frame on the "right"
+          by = c("county" = "Area",              # left label 1, right label 1
+                 "state" = "State"))             # left label 2, right label 2 (and so on, if you need more columns)
+```
+
+Unfortunately, the county population dataset isn't so simple, as we can see when we preview the output of `left_join()`: every value in the "estimates" column is NA. Why? Aha: `View(countypop_2019)` reveals that this dataset included words like "County", "Borough", and "Parish," while the cases data did not. And those differences make the match a little trickier.
+
+We'll need a few steps if we want to merge these: one to find the tricky endings, one to change just those values, and one to handle the regular cases.
+
+### Prepare the merge
+
+To find the uncommon endings, we'll use the base R search function `grepl()`, which returns a logical TRUE or FALSE if a string matches the pattern. As always, to learn more about the specific syntax and possible parameters, type `?grepl` at the console.
+
+```{r}
+countypop_2019 %>% 
+  filter(!grepl("County", countypop_2019$Area))           # filter() just needs a logical value to test. 
+                                                          # Here, we use the base R search function grepl() 
+                                                          # to say whether the string "County" matches anywhere in Area;
+                                                          # the exclamation mark, meaning "not", reverses TRUE and FALSE.
+```
+
+When I run this, 136 values come up, mostly in Alaska, Louisiana, and Virginia. How does the `cases` data handle these? Let's check.
+
+```{r}
+cases %>%
+  filter(state %in% c("Alaska", "Louisiana", "Virginia")) %>%
+  arrange(state) %>%
+  select(county, state) %>%
+  unique()
+```
+
+Looks like "Parish" is treated like "County", i.e. it's deleted... but the other variants are simply left in. So now we know how to clean up the data to prepare for the merge: for county and parish names, extract that word from the Area column; for other rows, leave the value as-is. 
+
+Two helper functions from the tidyverse make this possible: 
+* The **`case_when()`** function allows us to specify conditions for changing values inside of `mutate()`, with the replacement value following the tilde (`~`). * The `word()` function in the stringr package lets us extract the final word for the "County" and "Parish" cases, with words delimited here by spaces.
+
+```{r}
+
+# extract "county" and "parish" where they exist.
+countypop_2019_mergeable <- 
+  countypop_2019 %>%
+    mutate(Area = case_when(
+      
+      # If the Area value includes "County", extract the last word.
+      grepl("County", Area) ~ word(Area, 1, -2),   
+      
+      # If the Area value includes "Parish", extract the last word.
+      grepl("Parish", Area) ~ word(Area, 1, -2),          
+      
+      # Leave everything else as it is.
+      TRUE ~ Area))                      
+```
+
+You may want to check some values to make sure the extraction worked properly:
+
+```{r}
+# Do the non-"county" states look right?
+countypop_2019_mergeable %>%
+  filter(State %in% c("Alaska", "Louisiana", "Pennsylvania")) 
+
+# Have we lost any rows, or is the row-count still the same?
+nrow(countypop_2019) == nrow(countypop_2019_mergeable)
+```
+
+Looks good! We're now cleared to overwrite and clean up the workspace.
+
+```{r}
+countypop_2019 <- countypop_2019_mergeable
+rm(countypop_2019_mergeable)
+```
+
+
+### Do the merge itself
+
+Now that we have that cleaner version, we should be able to go back to the straightforward multi-column merge (fingers crossed!). Note that this is exactly the same failed code we had when we first tried the merge:
+
+```{r}
+left_join(cases,                                 # the data.frame on the "left" 
+          countypop_2019,                        # the data.frame on the "right"
+          by = c("county" = "Area",              # left label 1, right label 1
+                 "state" = "State"))             # left label 2, right label 2 (and so on, if you need more columns)
+```
+
+Let's just rename that estimate_2019 variable so we remember it's population that's being estimated; bind the merged data to a working variable; and we're good to go on with our investigations.
+
+```{r}
+
+cases_with_pop <- 
+  left_join(cases,                                 
+          countypop_2019,                       
+          by = c("county" = "Area",         
+                 "state" = "State")) %>%     
+  rename(population_2019 = estimate_2019)
+
+```
+
+
+## In conclusion
+
+Hopefully your data merges will be a lot more straightforward than that long process -- something closer to just that final step. But no matter what the world throws at you, now you know it can be done with a little perseverence! Let me know if you need help.

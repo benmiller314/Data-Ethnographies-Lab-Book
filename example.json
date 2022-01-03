@@ -1,0 +1,22 @@
+{
+ Name: Sally,
+ Age: 23,
+ Birth Month: 3,
+ Time on Phone: 42
+},
+{
+ Name: Julie,
+ Age: 40,
+ Birth Month: 2,
+ Time on Phone: 98
+},
+{
+ Name: Mark,
+ Age: 14,
+ Birth Month:
+  {
+    Number: 8,
+    Name: August
+  },
+ Time on Phone: 120
+}

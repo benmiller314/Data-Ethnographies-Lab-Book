@@ -1,0 +1,66 @@
+---
+title: "lab6 - datavis beyond R"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Why we start in R, why we might not finish in R
+
+R is great for many things data-related! And you know now some of the many ways it helps you parse data, manipulate and filter and group data, and some of the tools included in the tidyverse library for graphing data. R helps you document how you get from your data source to the story you're telling with that data, so you (or your readers) can reproduce it. 
+
+It also lets you filter and export smaller datasets that you want to plot using other tools.
+
+```{r}
+# load needed libraries
+library(tidyverse)
+```
+
+```{r}
+
+# load needed libraries
+library(tidyverse)
+
+# load COVID-19 dataset
+cases <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
+
+# extract the most recent data for each area, ignoring areas without fips codes
+latest_cases <- 
+  cases %>%                                     # start big
+    filter(!is.na(fips)) %>%                    # remove NA rows (can't map them)
+    group_by(fips) %>%                          # filter within each FIPS area
+    filter(date == max(date, na.rm = T)) %>%
+    ungroup()                                   # but keep it all together
+
+# check that we have one value per fips code
+if(any(duplicated(latest_cases$fips))) { 
+  warning("Duplication detected!")
+  print(latest_cases %>% filter(duplicated(fips)))
+} else {
+  print("There are no duplicated fips codes.")
+}
+
+```
+
+We might want to have a look inside:
+```{r}
+latest_cases %>%
+  arrange(desc(deaths))
+
+summary(latest_cases$date)
+
+```
+
+Now, let's export this recent data for use with datawrapper.de (or another datavis suite). The `file.path()` function lets us build a path through file folders, ending with a filename. For more on the `write_csv()` function, check the documentation with `?write_csv`.
+
+```{r}
+# Choose a destination to export to
+outfile <- paste0("cases_", as.character(max(latest_cases$date, na.rm = T)), ".csv")
+
+# Write the data to that location
+write_csv(latest_cases, file.path("datasets", outfile))
+
+```
+

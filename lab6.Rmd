@@ -24,80 +24,87 @@ In this lab, we will practice calculating and interpreting measures of central t
 ```{r}
 library(tidyverse)
 library(lubridate)
+library(jsonlite)
 ```
 
 
 ### Import and clean example datasets 
 
 ```{r}
-hospitals <- read.csv("https://opendata.arcgis.com/datasets/6ac5e325468c4cb9b905f1728d6fbf0f_0.csv", stringsAsFactors = FALSE)
 
-world_health_econ <- read.csv("https://raw.githubusercontent.com/lindsaypoirier/STS-115/master/datasets/world_health_econ.csv", stringsAsFactors = FALSE)
+### load dataset 1
+hospitals <- fromJSON("https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/Hospitals_1/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=json")
+hospitals_data <- hospitals$features$attributes
 
-cases <- read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv", stringsAsFactors = FALSE)
+# convert NA-like values to NA
+hospitals_data <- na_if(hospitals_data, "NOT AVAILABLE")
+hospitals_data <- na_if(hospitals_data, -999)
+hospitals_data <- na_if(hospitals_data, "NA")
 
-#Do not worry about this line of code for now. Since the cases data gets appended every day with a new column representing that day's case counts, if we want the total cases per country, we need to add up all of the previous day's counts into a new column. The column below does this for us. 
-cases <- 
-  cases %>% 
-  mutate(Total.Cases = 
-           cases %>% 
-           select(starts_with("X")) %>% 
-           rowSums()
-         ) %>%
-  select(Province.State, Country.Region, Total.Cases)
+# convert date-like values to dates
+hospitals_data$SOURCEDATE <- as_datetime(hospitals_data$SOURCEDATE / 1000)
+hospitals_data$VAL_DATE <- as_datetime(hospitals_data$VAL_DATE / 1000)
 
-hospitals$ZIP <- as.character(hospitals$ZIP)
 
-hospitals$ZIP <- str_pad(hospitals$ZIP, 5, pad = "0") 
+### load dataset 2
+cases <- read.csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv", stringsAsFactors = FALSE)
 
-is.na(hospitals) <- hospitals == "NOT AVAILABLE"
-is.na(hospitals) <- hospitals == -999
-is.na(cases) <- cases == ""
+# convert NA-like values to NA
+cases <- na_if(cases, "")
 
-hospitals$SOURCEDATE <- ymd_hms(hospitals$SOURCEDATE)
-hospitals$VAL_DATE <- ymd_hms(hospitals$VAL_DATE)
+# convert date-like values to dates
+cases$date <- ymd(cases$date)
+
+
+### load dataset 3
+world_health_econ <- read.csv("datasets/world_health_econ.csv", stringsAsFactors = FALSE)
+
+
 ```
 
-### Import and clean your dataset
+### Import and clean *your* chosen dataset
 
 ```{r}
 #Copy and paste relevant code from Lab 4 to import your data here. 
 
-#Copy and paste relevant code from Lab 4 to clean your data here. This includes any row binding, character removals, converions in variable type, date formatting, or NA conversions. 
+#Copy and paste relevant code from Lab 4 to clean your data here. This includes any row binding, character removals, conversions in variable type, date formatting, or NA conversions. 
 ```
 
 
 
 ### Zooming out - aka grouping common values and summarizing
 
-At times, we are seeking to get a broader picture of what's going on in our dataset than provided - grouping observations that share a common value and then performing a calculation to summarize something within each of those groups. In other words, sometimes we want to see our data in aggregate. For instance, I may want to know the total number of hospital beds per state. To calculate this, I would need to group all of the hospital observations by state and then sum the total number of beds in each group. 
-In such cases, we can call **group_by()** to aggregate the observations with common variable values into groups. Then we will call **summarize()** to perform a calculation within each of those groups. **summarize()** takes a set of values and a calculation method and returns a single value. For instance, if we call summarize() with a numeric column in our dataset and "mean" as a calculation method, it will return the average of all the numeric values in that column. When called in conjunction with group_by(), **summarize()** takes a set of values for each group and a calculation method and returns a single value for each group. 
+At times, we are seeking to get a broader picture of what's going on in our dataset than provided -- grouping observations that share a common value and then performing a calculation to summarize something within each of those groups. In other words, sometimes we want to see our data in *aggregate*. For instance, I may want to know the total number of hospital beds per state. To calculate this, I would need to group all of the hospital observations by state and then sum the total number of beds in each group. 
 
-For the hospitals dataset, we will group the observations by STATE and then use summarize to calculate the sum of BEDS per state. Notice below how we are choosing to ignore NA values above by calling na.rm = TRUE. When we do so, we need to keep in mind that we are not summarizing across all observations in the dataset, but only those for which there is a value listed in the variable we are operating on. Because of this, I also calculate the number of observations in each group, the number of observations where the BEDS variable is missing, and the percentage of observations in the group where the variable is missing. This provides important context for how readily we can rely on these numbers. For instance, when you run the code below, note how in Alaska, the number of beds are missing for 28% of the observations. 
+In such cases, we can call **`group_by()`** to aggregate the observations with common variable values into groups. Then we will call **`summarize()`** to perform a calculation within each of those groups. The `summarize()` function takes a set of values and a calculation method and returns a single value. For instance, if we call `summarize()` with a numeric column in our dataset and "mean" as a calculation method, it will return the average of all the numeric values in that column. When called in conjunction with `group_by()`, `summarize()` takes a set of values for each group and a calculation method and returns a single value for each group. 
+
+For the hospitals dataset, we will group the observations by STATE and then use summarize to calculate the sum of BEDS per state. Each of the parameters within `summarize()` defines a new column, using the structure *col_name = method(inputs_to_method)*. Note that this uses a single equals sign (`=`), because we're assigning a value, rather than a double equals sign (`==`) as when we're testing whether two values are the same.
+
+Notice as well how we are choosing to ignore NA values above by calling `na.rm = TRUE`. When we do so, we need to keep in mind that we are not summarizing across all observations in the dataset, but only those for which there is a value listed in the variable we are operating on. Because of this, we also calculate the number of observations in each group, the number of observations where the BEDS variable is missing, and the percentage of observations in the group where the variable is missing. This provides important context for how readily we can rely on these numbers. For instance, when you run the code below, note how in Alaska, the number of beds are missing for 28% of the observations. 
 
 ```{r}
 #Run this code chunk.
 
 #df %>% group_by(CATEGORICAL_VARIABLE) %>% summarize(NEW_VARIABLE_NAME = sum(NUMBERIC_VARIABLE, na.rm = TRUE)) %>% ungroup()
 
-hospitals %>% 
-  group_by(STATE) %>% #Group observations by state
+hospitals_data %>% 
+  group_by(STATE) %>% # Group observations by state
   summarize(
-    STATES_BEDS = sum(BEDS, na.rm = TRUE), #Calculate the sum of BEDS within each STATE group
-    OBSERVATIONS = n(), #Calculate how many observations are in each STATE group
-    MISSING_BEDS = sum(is.na(BEDS)), #Calculate how many NAs are in the BEDS variable in each STATE group
-    PERCENT_MISSING = sum(is.na(BEDS))/n()*100) %>% #Divide the two values you just calculated to determine the percent of missing data
+    STATES_BEDS = sum(BEDS, na.rm = TRUE), # Calculate the sum of BEDS within each STATE group
+    OBSERVATIONS = n(), # Calculate how many observations are in each STATE group
+    MISSING_BEDS = sum(is.na(BEDS)), # Calculate how many NAs are in the BEDS variable in each STATE group
+    PERCENT_MISSING = sum(is.na(BEDS))/n()*100) %>% # Divide the two values you just calculated to determine the percent of missing data
   ungroup()
 ```
 
 > Notice that I close each of these calls with **ungroup()**. When we group_by() a variable, any subsequent function calls will continue to be performed on the grouped data, unless we ungroup() it. This can be important if we want to filter to specific values after we summarize() the data. Assuming that we don't want to perform a filter operation within each group but on the entire new dataframe created after summarizing, we need to ungroup() the data before performing the filter() operation. 
 
-From this function, we see the number of beds across all hospitals per state. Depending on the question we are asking, this may or may not be relevant. For instance, if I'm wondering how much hospital infrastructure is available to support Covid-19 patients, one (of a number of factors) I need to consider before presenting this data is which types of hospitals are accepting Covid-19 patients. Are rehabilitation hospitals accepting patients? Psychiatric hospitals? Military hospitals? If they aren't now, will they at some point? Further, some states are talking about cordoning off hotels for Covid-19 patients. How do we account for this change in the number of hospital beds (something definitely not represented in our data based on the way hospital has been defined). We need to do external research to answer these questions. Then we may wish to filter our data to relevant hospital types. For instance, at this moment, we may filter our data to only include beds at General Acute Care Hospitals. We also know that some hospitals in the dataset are closed. We need to also filter these out before presenting the data. Notice how below, I can do this by simply copying and pasting the code from above and adding one filter statement before grouping the data. 
+From this function, we see the number of beds across all hospitals per state. Depending on the question we are asking, this may or may not be relevant. For instance, if I'm wondering how much hospital infrastructure is available to support Covid-19 patients, one factor (of a number of factors) I need to consider before presenting this data is which types of hospitals are accepting Covid-19 patients. Are rehabilitation hospitals accepting patients? Psychiatric hospitals? Military hospitals? If they aren't now, will they at some point? Further, some states have talked about cordoning off hotels for Covid-19 patients. How do we account for this change in the number of hospital beds (something definitely not represented in our data, based on the way hospital has been defined). We need to do external research to answer these questions. Then we may wish to filter our data to relevant hospital types. For instance, at this moment, we may filter our data to only include beds at General Acute Care Hospitals. We also know that some hospitals in the dataset are closed. We need to also filter these out before presenting the data. Notice how below, I can do this by simply copying and pasting the code from above and adding one filter statement before grouping the data. 
 
 ```{r}
 #Run this code chunk.
 
-hospitals %>% 
+hospitals_data %>% 
   filter(TYPE == "GENERAL ACUTE CARE" & STATUS == "OPEN") %>%
   group_by(STATE) %>% #Group observations by state
   summarize(
@@ -105,12 +112,35 @@ hospitals %>%
     OBSERVATIONS = n(), #Calculate how many observations are in each STATE group
     MISSING_BEDS = sum(is.na(BEDS)), #Calculate how many NAs are in the BEDS variable in each STATE group
     PERCENT_MISSING = sum(is.na(BEDS))/n()*100) %>% #Divide the two values you just calculated to determine the percent of missing data
-  ungroup()
+  ungroup() %>%
+  arrange(desc(PERCENT_MISSING))   # sort by missing values on top, just to confirm they're there
 ```
 
-In other words, often times to answer questions within a dataset, we need to both zoom in and out on data - honing in on certain observations and then generalizing across them. We cannot answer questions well if we don't have a good understanding of what's included in our data and how issues are defined. Had we not known that hospitals that are closed and hospitals that are classed as rehabs or psychiatric facilities were included in the data, we may have made some poor assumptions about the number of beds available. Also note how, in every step of data analysis, we have to make decisions about what to include and what to exclude in the analysis. Data analysts play a very active role in shaping the knowledge that gets produced from data. The numbers can never speak for themselves. 
+In other words, often times to answer questions within a dataset, we need to both zoom in and out on data -- homing in on certain observations and then generalizing across them. We cannot answer questions well if we don't have a good understanding of what's included in our data and how issues are defined. Had we not known that closed hospitals and hospitals that are classed as rehabs or psychiatric facilities were included in the data, we may have made some poor assumptions about the number of beds available. Also note how, in every step of data analysis, we have to make decisions about what to include and what to exclude in the analysis. Data analysts play a very active role in shaping the knowledge that gets produced from data. The numbers can never speak for themselves. 
 
-Select a categorical variable that you would like to group your data by, so that you can summarize some statistics across each grouping. You may group your data by a particular year, by a particular location (such as a state or a region), or by a particular category. Then select a numeric variable in your dataset to summarize by. For instance, you may want to sum the total number of reports in a given year, or find the average number of cases reported in a certain state. Also calculate the percent of observations where data is missing in each group. If you have qualified units of observation, you may want to group the data by one of the variables in your unique key. For instance, if your unique key is a county and year, then perhaps you want to group the data by county and summarize something across each year. If you have qualified units of observation and choose to group by a variable that is not in your unique key, then be sure to filter the data as you have been above. 
+### Don't forget to compare like values
+
+Remember that the NY Times Covid-19 dataset has a new value for most dates in each location, so you'll need to filter for only the most recent values before you can group counties by state; otherwise, you'd dramatically overcount your totals. 
+
+```{r}
+
+cases %>%
+  filter(date == max(date, na.rm = T)) %>%
+  group_by(state) %>%
+  summarize(CASES = sum(cases, na.rm = T),
+            OBSERVATIONS = n(),
+            MISSING_VALUES = sum(is.na(cases)),
+            PCT_MISSING = MISSING_VALUES / OBSERVATIONS * 100) %>%
+  ungroup() %>%
+  arrange(desc(PCT_MISSING))   # sort by missing values -- demoing that there are none missing
+
+```
+
+
+#### Your turn
+Select a categorical variable that you would like to group your data by, so that you can summarize some statistics across each grouping. You may group your data by a particular year, by a particular location (such as a state or a region), or by a particular category. Then select a numeric variable in your dataset to summarize by. For instance, you may want to sum the total number of reports in a given year, or find the average number of cases reported in a certain state. Also calculate the percent of observations where data is missing in each group. 
+
+If you have qualified units of observation, you may want to group the data by one of the variables in your unique key. For instance, if your unique key is a county and year, then perhaps you want to group the data by county and summarize something across each year. If you have qualified units of observation and choose to group by a variable that is not in your unique key, then be sure to filter the data as you have been above. 
 
 ```{r}
 #Uncomment the appropriate lines below, and fill in your data frame, variables, and summarize variable name, and math function. Then run the code.
@@ -146,48 +176,51 @@ Fill your response here.
 
 ## Measures of Central Tendency
 
-A measure of central tendency is a single numeric quantity describing data by identifying a central position within it. It summarizes values within a set into a single value. We often refer to such a value as an average. 
+A *measure of central tendency* is a single numeric quantity describing data by identifying a central position within it. It summarizes values within a set into a single value. We often refer to such a value as an average, but mean is not the only (or even, often, the most useful) measure of central tendency we can calculate. 
 
-At times, finding this measure can be quite useful __. However, we also need to be careful when relying on measures of central tendency to communicate information about our data. This is because measures of central tendency can be *reductionist* - reducing a complex story told across data to a single value. They can hide meaningful outliers and erase the nuance of a complicated narrative. For instance, measures of central tendency related to wealth in the US are likely to hide the experiences of the most impoverished communities. Such a measure can be a weapon for stakeholders combatting government policies to direct public resources towards communities in need. 
+At times, finding this measure can be quite useful __. However, we also need to be careful when relying on measures of central tendency to communicate information about our data. This is because measures of central tendency can be *reductionist* -- reducing a complex story told across data to a single value. They can hide meaningful outliers and erase the nuance of a complicated narrative. For instance, measures of central tendency related to wealth in the US are likely to hide the experiences of the most impoverished communities. Such a measure can be a weapon for stakeholders combating government policies to direct public resources towards communities in need. 
 
-Further, there are many pitfalls we need to steer clear of when assessing a measure of central tendency. Such a measure should only be taken to summarize the values across *similar observations.* If you have qualified units of observation, this will likely mean filtering your data to a set of similar values - to one year in the world_health_econ dataset for instance if you were looking to average populations across countries. 
+Further, there are many pitfalls we need to steer clear of when assessing a measure of central tendency. Such a measure should only be taken to summarize the values across *similar observations.* If you have qualified units of observation, this will likely mean filtering your data to a set of similar values -- to one year in the world_health_econ dataset for instance, if you were looking to average populations across countries. 
 
-Let's say that we were looking to calculate the average number of beds in hospitals across the US. To do so, would it be appropriate to identify a central position within the BEDS variable in the dataset? Probably not. There are many different types of hospitals in the hospitals dataset, and we would expect these different hospitals to have different numbers of beds. For instance, we *know* from our research that Critical Access Hospitals are supposed to have 25 beds or fewer. In averaging across all of them, we would be measuring the center value of dissimilar observations. Before taking an average of BEDS, we would want to filter our data to a set of similar observations. We will do this below - filtering to open general acute care hospitals.
+Let's say that we were looking to calculate the average number of beds in hospitals across the US. To do so, would it be appropriate to identify a central position within the BEDS variable in the dataset? Probably not. There are many different types of hospitals in the hospitals dataset, and we would expect these different hospitals to have different numbers of beds. For instance, we *know* from our research that Critical Access Hospitals are supposed to have 25 beds or fewer. In averaging across all of them, we would be measuring the center value of dissimilar observations. Before taking an average of BEDS, we would want to filter our data to a set of similar observations. We will do this below, filtering to open general acute care hospitals.
 
 ### Mean
 
-A commomn measure of central tendency is a *mean* - the sum of a series of values divided by the number of values summed. This measure considers every value in a set of data and thus is a model of the entire set of data. Remember from lab five that we calculate mean with **summarize()**  Let's calculate the mean number of beds at open general acute care hospitals.
+One common measure of central tendency is a *mean* -- the sum of a series of values divided by the number of values summed. This measure considers every value in a set of data and thus is a model of the entire set of data. Remember that we calculate mean with `summarize()`. Let's calculate the mean number of beds at open general acute care hospitals.
 
 ```{r}
 #df %>% summarize(mean_value = mean(NUMERIC_VARIABLE, na.rm = TRUE))
 
-hospitals %>% 
+hospitals_data %>% 
   filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE") %>%
   summarize(mean_value = mean(BEDS, na.rm = TRUE))
 ```
 
-Similarly, if we wanted to know the mean number of Covid-19 cases per country, as we learned last week, we would need to group_by() the country and summarize() the total number of cases. Remember that this is because some cases are reported at the province level and some are reported at the country level. To ensure that we are taking a measure of central tendency across similar data, we need to ensure that all of the values we are summarizing are reported at one geographic scale - in this case, the country level. 
+Similarly, if we wanted to know the mean number of Covid-19 cases per country, as we learned last week, we would need to group_by() the country and summarize() the total number of cases. Remember that this is because some cases are reported at the province level and some are reported at the country level. To ensure that we are taking a measure of central tendency across similar data, we need to ensure that all of the values we are summarizing are reported at one geographic scale -- in this case, the country level. 
 
 ```{r}
 #df %>% summarize(mean_value = mean(NUMERIC_VARIABLE, na.rm = TRUE))
 
 cases %>% 
-  group_by(Country.Region) %>%
-  summarize(Total.Cases = sum(Total.Cases, na.rm = TRUE)) %>%
+  filter(date == max(date, na.rm = TRUE)) %>%
+  group_by(state) %>%
+  summarize(Total.Cases = sum(cases, na.rm = TRUE)) %>%
   ungroup() %>%
   summarize(mean_value = mean(Total.Cases, na.rm = TRUE))
 ```
 
 ### Median
 
-Another measure of central tendency considers the middle value in a dataset; this is referred to as the *median*. Now let's calculate the median number of beds at open general acute care hospitals.
+Another measure of central tendency considers the middle value in an ordered vector of numbers; this is referred to as the *median*. Now let's calculate the median number of beds at open general acute care hospitals.
 
 ```{r}
 #df %>% summarize(median_value = median(NUMERIC_VARIABLE, na.rm = TRUE))
 
-hospitals %>% 
+hospitals_data %>% 
   filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE") %>%
-  summarize(median_value = median(BEDS, na.rm = TRUE))
+  summarize(mean_value = mean(BEDS, na.rm = TRUE),
+            median_value = median(BEDS, na.rm = TRUE),
+            difference = mean_value - median_value)
 ```
 
 Let's also calculate the median number of Covid-19 cases per country.
@@ -195,21 +228,24 @@ Let's also calculate the median number of Covid-19 cases per country.
 #df %>% summarize(mean_value = mean(NUMERIC_VARIABLE, na.rm = TRUE))
 
 cases %>% 
-  group_by(Country.Region) %>%
-  summarize(Total.Cases = sum(Total.Cases, na.rm = TRUE)) %>%
+  filter(date == max(date, na.rm = TRUE)) %>%
+  group_by(state) %>%
+  summarize(Total.Cases = sum(cases, na.rm = TRUE)) %>%
   ungroup() %>%
-  summarize(median_value = median(Total.Cases, na.rm = TRUE))
+  summarize(mean_value = mean(Total.Cases, na.rm = TRUE),
+            median_value = median(Total.Cases, na.rm = TRUE),
+            difference = mean_value - median_value)
 ```
 
-Notice how there's a considerable difference between the mean and the median value across both of these sets of calculations. So which should we rely on to summarize the central location in our dataset? 
+Notice how there's a considerable difference between the mean and the median value across both of these sets of calculations; in particular, both means are much higher than their respetive medians. So which measure should we rely on to summarize the central location in our dataset? 
 
 We want to keep in mind that because the mean is a model of the entire dataset, it is easily influenced by outliers in the dataset, as well as a skewed distribution. When the distribution of values in a set is normal, the mean and median of the dataset will be the same because the values on either side of the middle value will be symmetrical. In other words, the distribution will be balanced on either side of the median. Frequency plots give us a good indication of the distribution of values the dataset. 
 
 ```{r fig.height=5, fig.width=10}
-hospitals %>% 
+hospitals_data %>% 
   filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE") %>%
   ggplot(aes(x = BEDS)) +
-  geom_freqpoly(binwidth = 10) + 
+  geom_histogram(binwidth = 10) + 
   labs(title = "Distribution of Beds across General Acute Care Hospitals in the US that are Open", x = "Beds", y = "Count of Hospitals") +
   theme_bw()
 ```
@@ -217,26 +253,28 @@ hospitals %>%
 
 ```{r fig.height=5, fig.width=10}
 cases %>% 
-  group_by(Country.Region) %>%
-  summarize(Total.Cases = sum(Total.Cases, na.rm = TRUE)) %>%
+  filter(date == max(date, na.rm = TRUE)) %>%
+  group_by(state) %>%
+  summarize(Total.Cases = sum(cases, na.rm = TRUE)) %>%
   ungroup() %>%
   ggplot(aes(x = Total.Cases)) + 
-  geom_freqpoly(binwidth = 10000) +
-  labs(title = "Distribution of Cases across Countries", x = "Total Cases", y = "Count of Countries") + # To add titles and labels
+  geom_histogram(binwidth = 10000) +
+  labs(title = "Distribution of Cases across US States", x = "Total Cases", y = "Count of States") + # To add titles and labels
   theme_bw() +
   theme(axis.text.x = element_text(angle = 90, hjust=1)) + #Turn labels 90 degrees
   scale_x_continuous(labels = scales::comma) #Change labels from scientific to comma notation
 ```
 
-You'll notice in the hospitals and the cases dataset, the values of are significantly right-skewed. We can tell because the values represented on the plot are far from symmetrical. Instead, there is a long tail running to the right of the data. In such cases, the mean is going to be significantly influenced by the larger values in the data even though there are far fewer. 
+You'll notice in both the hospitals and the cases datasets, the values represented on the plot are far from symmetrical. Instead, there is a long tail running to the right of the graph In such cases, the mean is going to be significantly influenced by the larger values in the data (it will be *right-skewed*) even though there are far fewer of those large values. 
 
-When the values in a frequency plot are skewed to the left or the right, we often want to rely on the median rather than the mean as a measure of central tendency, as it more clearly distinguishes the central location in the data. In the hospitals and the cases dataset, median is a better indicator of central tendency than the mean. However, both still significanltly gloss over the dispersion of values in the data. 
+When the values in a frequency plot are skewed to the left or the right, we often want to rely on the median rather than the mean as a measure of central tendency, as it more clearly distinguishes the central location in the data. In the hospitals and the cases dataset, median is a better indicator of central tendency than the mean. However, both still significantly gloss over the dispersion of values in the data. 
 
-We also need to be careful when taking measures of central tendency that we do not attempt to take an average of an average. Let me provide an exmaple of why this is inappropriate. Let's say I were to find the average number of beds at open general acute hospitals per state using group_by() and summarize().
+### A Caution
+We also need to be careful when taking measures of central tendency that we do not attempt to take an average of an average. Let me provide an example of why this is inappropriate. Let's say I were to find the average number of beds at open general acute hospitals per state using `group_by()` and `summarize()`.
 
 ```{r}
 avg_by_state <- 
-  hospitals %>% 
+  hospitals_data %>% 
   filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE") %>%
   group_by(STATE) %>%
   summarize(mean_value = mean(BEDS, na.rm = TRUE)) %>%
@@ -248,13 +286,13 @@ avg_by_state
 In taking the mean of the mean_value column we just created (i.e. an average of the state averages), you will notice that we get a different value than the mean we calculated above:
 
 ```{r}
-#Mean of BEDS across all observations
+#Mean of BEDS across all *observations*
 avg_across_all_obs <-
-  hospitals %>% 
+  hospitals_data %>% 
   filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE") %>%
   summarize(mean_value = mean(BEDS, na.rm = TRUE))
 
-#Mean of BEDS across all state averages
+#Mean of BEDS across all *state averages*
 avg_across_state_avgs <-
   avg_by_state %>%
   summarize(mean_value = mean(mean_value, na.rm = TRUE))
@@ -263,17 +301,17 @@ avg_across_state_avgs <-
 paste("When we check if", avg_across_all_obs, "(the mean of BEDS across all observations) is equal to", avg_across_state_avgs, "(the mean of BEDS across state averages) the result is", avg_across_all_obs == avg_across_state_avgs)
 ```
 
-This is because when we take an average of averages, we are ignoring a key confounding variable - the size of the denominator in each of the state averages. We know that there are different numbers of hospitals in each state. When we take the mean across all state averages, we basically ignore this variable - producing a different mean than if we were to calculate mean across all observations in the set. This can have dramatic consequences on the values reported in our data. 
+This is because when we take an average of averages, we are ignoring a key confounding variable - the size of the denominator in each of the state averages. We know that there are different numbers of hospitals in each state. When we take the mean across all state averages, we basically ignore this variable -- producing a different mean than if we were to calculate mean across all observations in the set. This can have dramatic consequences on the values reported in our data. 
 
-Please watch this short video on Simpon's Paradox to learn more about the importance of avoiding this pitfall:
+Please watch this short video on Simpson's Paradox to learn more about the importance of avoiding this pitfall:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/ebEkn-BiW5k" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
-This is an issue we would need to keep in mind when calculating measures of central tendency in our world_health_econ dataset. The majority of the variables reported in the world_health_econ dataset are already averages - either averages across the population of the country or averages across the country's total spending on health. Because of this, it would be inappropriate to calculate measures of central tendency across these variables without knowing their denominators. 
+This is an issue we would need to keep in mind when calculating measures of central tendency in our world_health_econ dataset. The majority of the variables reported in the world_health_econ dataset are already averages -- either averages across the population of the country or averages across the country's total spending on health. Because of this, it would be inappropriate to calculate measures of central tendency across these variables without knowing their denominators. 
 
-> You might be thinking, "Well don't we have population as another variable in the dataset. Doesn't that tell us the denominator of some of the averages?" That is corret. However, looking at our data dictionary you will notice that the population variable in the dataset is derived from a different source than the health economics indicators. While we can expect these numbers to be in proximity, different organizations count the number of people in a country differently. This value might not accurately reflect the denominator of many of our health economics indicators. 
+> You might be thinking, "Well don't we have population as another variable in the dataset? Doesn't that tell us the denominator of some of the averages?" That is correct; however, looking at our data dictionary you will notice that the population variable in the dataset is derived from a different source than the health economics indicators. While we can expect these numbers to be in proximity, different organizations count the number of people in a country differently. This value might not accurately reflect the denominator of many of our health economics indicators. 
 
-### Measures of Central Tendency in your Own Dataset
+### Your Turn: Measures of Central Tendency in your Own Dataset
 
 #### Calculate the mean and median of a numeric variable in your dataset. 
 
@@ -313,7 +351,7 @@ Characterize the extent to which the value you selected as a measure of central 
 Fill your response here. 
 ```
 
-If we were to use this single value to summarize this variable, what narratives would be left out? How does the complexity of the narratives in your data get reduced in calculating this value. 
+If we were to use this single value to summarize this variable, what narratives would be left out? How does the complexity of the narratives in your data get reduced in calculating this value? 
 
 ```{r eval=FALSE}
 Fill your response here. 
@@ -369,7 +407,7 @@ If we were to use this single value to summarize this variable, what narratives 
 Fill your response here. 
 ```
 
-As we've been discussing in class, any measure that we calculate is mediated by the way the phenomena we are measuring gets defined. How were the numeric variables that you selected defined? What was included in these definitions, and what potentially relevant values were excluded?
+As we've been discussing, any measure that we calculate is mediated by the way the phenomena we are measuring gets defined. How were the numeric variables that you selected defined? What was included in these definitions, and what potentially relevant values were excluded?
 
 ```{r eval=FALSE}
 Fill your response here. 
@@ -377,41 +415,41 @@ Fill your response here.
 
 ## Measures of Dispersion
 
-Measures of dispersion help us to understand how spread out the values in our dataset are - their variations from each other and from the data's center. Like measures of central tendency, measures of dispersion should be taken across a set of data with similar values. This often means filtering our data to those that represent a similar set of observations.
+Measures of dispersion help us to understand how spread out the values in our dataset are -- their variations from each other and from the data's center. Like measures of central tendency, measures of dispersion should be taken across a set of data with similar meaning. This often means filtering our data to those that represent a like set of observations.
 
 ### Ranges
 
-The range of data refers to the difference between the maximum value in a set and the minimum value in a set. We can also use summarize() to find the max value, min value, and range of values in a numeric variable. 
+The *range* of data refers to the difference between the maximum value in a set and the minimum value in a set. We can also use `summarize()` to find the max value, min value, and range of values in a numeric variable. 
 
 ```{r}
 #df %>% summarize(max_value = max(NUMERIC_VARIABLE, na.rm = TRUE))
-hospitals %>% 
+hospitals_data %>% 
   filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE") %>%
   summarize(max_value = max(BEDS, na.rm = TRUE))
 
 #df %>% summarize(min_value = min(NUMERIC_VARIABLE, na.rm = TRUE))
-hospitals %>% 
+hospitals_data %>% 
   filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE") %>%
   summarize(min_value = min(BEDS, na.rm = TRUE))
 
 #df %>% summarize(range = max(NUMERIC_VARIABLE, na.rm = TRUE) - min(NUMERIC_VARIABLE, na.rm = TRUE))
-hospitals %>% 
+hospitals_data %>% 
   filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE") %>%
   summarize(range = max(BEDS, na.rm = TRUE) - min(BEDS, na.rm = TRUE))
 ```
 
 ### Quartile Deviation
 
-Even though we are introducing the boxplot in relation to quartile deviation, it can be a tool for summarizing a number of quantitative insights in relation to a numerical variable in our dataset. Boxplots provide a visual representation of both measures of central tendency and measures of dispersion. The center line in a boxplot indicates the median of the dataset. The bottom of the box represents the 1st quartile - the value in the middle of the minimum and the median (or the the value at the 1st quarter position). The top of the box represents the 3rd quartile - the value in the middle of the median and the maximum (or the value at the 3rd quarter position). The whiskers include almost all of the data - indicating its range from minimum to maximum excluding outliers. The dots represent outliers. ggplot has a calculation for outliers that we need not go into in this course.
+Even though we are introducing the boxplot in relation to quartile deviation, it can be a tool for summarizing a number of quantitative insights in relation to a numerical variable in our dataset. *Boxplots* provide a visual representation of both measures of central tendency and measures of dispersion. The center line in a boxplot indicates the median of the dataset. The bottom of the box represents the 1st quartile -- the value halfway between the minimum and the median (or the the value at the 1st quarter position). The top of the box represents the 3rd quartile -- the value halfway between the median and the maximum (or the value at the 3rd quarter position). The whiskers include almost all of the data, indicating its range from minimum to maximum excluding outliers. The dots represent outliers. (ggplot has a calculation for outliers that we need not go into in this course.)
 
-The further the 1st and 3rd quartile are from the median (or, in other words, the wider the box), the greater the *quartile deviation.* In general, a narrower box and whiskers indicates less dispersion in the data, while a wider box and whiskers indicates greater dispersion.  
+The further the 1st and 3rd quartile are from the median (or, in other words, the wider the box), the greater the *quartile deviation.* In general, a shorter box and whiskers indicates less dispersion in the data -- most values are fairly similar to each other -- while a longer box and whiskers indicates greater dispersion, i.e. greater variation in values.  
 
 Let's use a boxplot to check out the quartile deviation of beds in open general acute care hospitals in the US.
 
 ```{r fig.height=5, fig.width=5}
 #df %>% ggplot(aes(y = NUMERIC_VARIABLE)) + geom_boxplot() + theme_bw()
 
-hospitals %>%
+hospitals_data %>%
   filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE") %>%
   ggplot(aes(y = BEDS)) +
   geom_boxplot() +
@@ -420,21 +458,41 @@ hospitals %>%
 ```
 > Note how we can title a boxplot very similarly to how we title a frequency plot. Both show distributions of values. 
 
-We can see from this plot that the quartile deviation is much smaller than the range in our dataset. This suggests that centered values are more concentrated than the extremes. 
+We can see from this plot that the quartile deviation is much smaller than the range in our dataset. This suggests that centered values are more concentrated than the extremes. State-aggregated COVID cases have a similar distribution:
+
+```{r fig.height=5, fig.width=6}
+max_date <- max(cases$date, na.rm = T)
+cases %>%
+  filter(date == max_date) %>%     # use only the most recent data
+  group_by(state) %>%              # aggregate by state
+  summarize(state_cases = sum(cases)) %>%
+  ungroup() %>%                    # we want one plot for all states, not one plot *per* state
+  ggplot(aes(y = state_cases)) + 
+  geom_boxplot() +
+  labs(title = "Distribution of Total Covid Cases Across States", 
+       y = "Cases", 
+       subtitle = paste("as of ", max_date)) + 
+  scale_y_continuous(labels = scales::comma) + #Change labels from scientific to comma notation
+  theme_bw()
+
+```
 
 ### Standard Deviation
 
-*Standard deviation* calculates the extent of concentration of values around the mean. A higher standard deviation indicates that values are more dispersed from the mean, and a lower standard deviation indicates that values are more concentrated around the mean.  
+*Standard deviation* (or SD) calculates the extent of concentration of values around the mean. A higher standard deviation indicates that values are more dispersed from the mean, and a lower standard deviation indicates that values are more concentrated around the mean. 
 
 ```{r}
 #df %>% summarize(sd_value = sd(NUMERIC_VALUE, na.rm = TRUE))
 
-hospitals %>% 
+hospitals_data %>% 
   filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE") %>%
   summarize(sd_value = sd(BEDS, na.rm = TRUE))
 ```
 
-### Measures of Dispersion in Your Own Dataset
+Note that the SD uses the mean as its measure of central tendency around which to disperse, and as such is most meaningful when the mean itself is meaningful, e.g. when the distribution is symmetrical around the mean.
+
+
+### Your Turn: Measures of Dispersion in Your Own Dataset
 
 #### Select one of the numeric variables on which you calculated a measure of central tendency above, and calculate the maximum value, the minimum value, and the range of values within that variable.
 
@@ -501,6 +559,7 @@ What insight can you draw from this calculation?
 Fill your response here. 
 ```
 
+### Reflect
 Now that you have a sense of the dispersion of some of the values in your data, why do you believe the values are as concentrated or dispersed as they are? What do the measures of dispersion you calculated say about social, political, or economic life in the area the data is representing? You may need to do some research to answer this question. For instance, noting the dispersion of beds in the hospitals data, I may do a Web search for "Why do some hospitals in the US have more beds than others?" and find [this](https://www.nytimes.com/interactive/2020/03/17/upshot/hospital-bed-shortages-coronavirus.html) article. Be sure to assess the reputability of your source and cite it in your response below. 
 
 ```{r eval=FALSE}
@@ -518,25 +577,49 @@ ggplot's geom_boxplot feature is particularly good at comparing measures of disp
 ```{r fig.height=5, fig.width=10}
 #df %>% ggplot(aes(x = CATEGORICAL_VARIABLE, y = NUMERIC_VARIABLE)) + geom_boxplot()
 
-hospitals %>%
+hospitals_data %>%
   filter(STATUS == "OPEN") %>%
-  ggplot(aes(x = TYPE, y = BEDS)) +
+  ggplot(aes(x = TYPE, 
+             y = BEDS)) +
   geom_boxplot() +
   labs(title = "Distribution of Beds across Hospitals in the US that are Open by Type", x = "Type", Y = "Beds") +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 90, hjust=1)) + #Changes x-axis tick labels 90 degrees
-  coord_flip() #Flips the x and y axis to make the data easier to read and compare
+  theme(axis.text.x = element_text(angle = 90, hjust=1)) + # Changes x-axis tick labels 90 degrees
+  coord_flip() # Flips the x and y axis to make the data easier to read and compare
 
 ```
+
+Note that by default, the plots will be ordered alphabetically by your grouping variable, which isn't usually what you want -- you'd much rather see trends, no? The `reorder()` function lets you choose a value by which to organize instead. It takes three values: the grouping variable, the variable to sort by (applied within each group), and an optional function to apply to the sorting variable before reordering. Here, we might want to sort by median BED count for each hospital TYPE. It's easiest to show you an example:
+
+
+```{r fig.height=5, fig.width=10}
+#df %>% ggplot(aes(x = CATEGORICAL_VARIABLE, y = NUMERIC_VARIABLE)) + geom_boxplot()
+
+hospitals_data %>%
+  filter(STATUS == "OPEN") %>%
+  ggplot(aes(x = fct_reorder(TYPE,   # group by TYPE
+                             BEDS,   # sort by BEDS...
+                             .fun = median,    # or rather, the median BEDS...
+                             na.rm = TRUE),    # after removing NA values
+             y = BEDS)) +
+  geom_boxplot() +
+  labs(title = "Distribution of Beds across Hospitals in the US that are Open by Type", x = "Type", Y = "Beds") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust=1)) + # Changes x-axis tick labels 90 degrees
+  coord_flip() # Flips the x and y axis to make the data easier to read and compare
+
+```
+
+NB: The `fct_reorder()` function comes with tidyverse as part of the forcats package; for more, run `?fct_reorder` at the console. For a generic R version, see `reorder()`.
 
 We can also filter our data to similar values and the compare dispersions across another category. 
 
 ```{r fig.height=5, fig.width=10}
 #df %>% ggplot(aes(x = CATEGORICAL_VARIABLE, y = NUMERIC_VARIABLE)) + geom_boxplot()
 
-hospitals %>%
+hospitals_data %>%
   filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE") %>%
-  ggplot(aes(x = OWNER, y = BEDS)) +
+  ggplot(aes(x = fct_reorder(OWNER, BEDS, median, na.rm=TRUE), y = BEDS)) +
   geom_boxplot() +
   labs(title = "Distribution of Beds across Hospitals in the US that are Open by Type", x = "OWNER", Y = "Beds") +
   theme_bw() +
@@ -545,24 +628,25 @@ hospitals %>%
 
 ```
 
-We see above that there is a greater dispersion in the number of beds available at state hospitals and non-profit hospitals. We also see that, in local hospitals, the median is closer to the first quartile than in other plots, and there are a number of outliers, indicating that the data is going to be more right skewed than in other plots right-skewed. Compare this to federal hospitals, where the median is more centered in the box (and there are few outliers). We are likely to see a less skewed distribution in this plot. Let's confirm this.
+We see above that there is a greater dispersion in the number of beds available at state hospitals and non-profit hospitals. We also see that, in local hospitals, the median is closer to the first quartile than in other plots, and there are a number of outliers, indicating that the data is going to be more right skewed than in other plots. Compare this to federal hospitals, where the median is more centered in the box (and there are few outliers). We are likely to see a less skewed distribution in this plot. Let's confirm this.
 
-```{r fig.height=5, fig.width=5}
-hospitals %>%
+```{r fig.height=5, fig.width=8}
+hospitals_data %>%
   filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE" & OWNER == "GOVERNMENT - LOCAL") %>%
   ggplot(aes(x = BEDS)) +
-  geom_freqpoly(binwidth = 25) +
-  labs(title = "Distribution of Beds across Open General Acute Care Local Hospitals in the US", x = "Beds", y = "Count of Hospitals") + # To add titles and labels
-  theme_bw()
+  geom_histogram(binwidth = 25) +
+  labs(title = "Distribution of Beds across Open General Acute Care Federal Hospitals in the US", x = "Beds", y = "Count of Hospitals") + # To add titles and labels
+  theme_bw() 
 
-hospitals %>%
+hospitals_data %>%
   filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE" & OWNER == "GOVERNMENT - FEDERAL") %>%
   ggplot(aes(x = BEDS)) +
-  geom_freqpoly(binwidth = 25) +
+  geom_histogram(binwidth = 25) +
   labs(title = "Distribution of Beds across Open General Acute Care Federal Hospitals in the US", x = "Beds", y = "Count of Hospitals") + # To add titles and labels
-  theme_bw()
+  theme_bw() 
+
 ```
-We can see above how the distribution in the second plot is a bit more normal than the distribution in the first, confirming what we concluded above. 
+We can see above how the distribution in the Federal plot is more symmetrical than the distribution in the Local, confirming what we concluded above. However, we also see why: there are only two non-NA values in this combination of categories (Open, General Acute Care, and Federal). While boxplots are great at summarizing distribution within a sample, they don't usually do such a great job of representing the relative sizes of samples.
 
 ### Create a grouped boxplot for your dataset below.
 

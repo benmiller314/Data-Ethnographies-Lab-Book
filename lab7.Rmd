@@ -23,40 +23,40 @@ At this point in the quarter, we have produced a number of plots and calculate a
 ```{r}
 library(tidyverse)
 library(lubridate)
-library(shiny)
-library(shinydashboard)
-library(shinyWidgets)
+library(jsonlite)
 ```
 
 ### Import and clean example datasets 
 
 ```{r}
-hospitals <- read.csv("https://opendata.arcgis.com/datasets/6ac5e325468c4cb9b905f1728d6fbf0f_0.csv", stringsAsFactors = FALSE)
+### load dataset 1
+hospitals <- fromJSON("https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/Hospitals_1/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=json")
+hospitals_data <- hospitals$features$attributes
 
-world_health_econ <- read.csv("https://raw.githubusercontent.com/lindsaypoirier/STS-115/master/datasets/world_health_econ.csv", stringsAsFactors = FALSE)
+# convert NA-like values to NA
+hospitals_data <- na_if(hospitals_data, "NOT AVAILABLE")
+hospitals_data <- na_if(hospitals_data, -999)
+hospitals_data <- na_if(hospitals_data, "NA")
 
-cases <- read.csv("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_global.csv", stringsAsFactors = FALSE)
+# convert date-like values to dates
+hospitals_data$SOURCEDATE <- as_datetime(hospitals_data$SOURCEDATE / 1000)
+hospitals_data$VAL_DATE <- as_datetime(hospitals_data$VAL_DATE / 1000)
 
-#Do not worry about this line of code for now. Since the cases data gets appended every day with a new column representing that day's case counts, if we want the total cases per country, we need to add up all of the previous day's counts into a new column. The column below does this for us. 
-cases <- 
-  cases %>% 
-  mutate(Total.Cases = 
-           cases %>% 
-           select(starts_with("X")) %>% 
-           rowSums()
-         ) %>%
-  select(Province.State, Country.Region, Total.Cases)
 
-hospitals$ZIP <- as.character(hospitals$ZIP)
+### load dataset 2
+cases <- read.csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv", stringsAsFactors = FALSE)
 
-hospitals$ZIP <- str_pad(hospitals$ZIP, 5, pad = "0") 
+# convert NA-like values to NA
+cases <- na_if(cases, "")
 
-is.na(hospitals) <- hospitals == "NOT AVAILABLE"
-is.na(hospitals) <- hospitals == -999
-is.na(cases) <- cases == ""
+# convert date-like values to dates
+cases$date <- ymd(cases$date)
 
-hospitals$SOURCEDATE <- ymd_hms(hospitals$SOURCEDATE)
-hospitals$VAL_DATE <- ymd_hms(hospitals$VAL_DATE)
+
+### load dataset 3
+world_health_econ <- read.csv("datasets/world_health_econ.csv", stringsAsFactors = FALSE)
+
+
 ```
 
 ### Import and clean your dataset. 
@@ -71,21 +71,21 @@ hospitals$VAL_DATE <- ymd_hms(hospitals$VAL_DATE)
 
 To get us started in putting our data into context, we are going to look at some of the plots we produced in previous labs grouped according to a categorical variable in our dataset. 
 
-By *faceting* plots, we split them into a series of panels each representing the grouped data associated with a particular value in a categorical variable. Let's start with an easy example from our hospitals data - faceting a bar plot of the number of hospitals that have a helipad by state. 
+By *faceting* plots, we split them into a series of panels each representing the grouped data associated with a particular value in a categorical variable. Let's start with an easy example from our hospitals data: faceting a bar plot of the number of hospitals that have a helipad by state. 
 We can facet a plot by adding: + facet_wrap(~VARIABLE_NAME) to the call. 
 
 ```{r fig.height=5, fig.width=10}
 #df %>% ggplot(aes(x = CATEGORICAL_VARIABLE)) + geom_bar() + facet_wrap(~CATEGORICAL_VARIABLE)
 
 #without facet_wrap()
-hospitals %>% 
+hospitals_data %>% 
   ggplot(aes(x = HELIPAD)) + 
   geom_bar() +
   labs(title = "Number of Hospitals by Helipad Status", x ="Helipad", y = "Count of Hospitals" ) +
   theme_bw()
 
 #with facet_wrap()
-hospitals %>% 
+hospitals_data %>% 
   ggplot(aes(x = HELIPAD)) + 
   geom_bar() +
   facet_wrap(~STATE) +
@@ -99,7 +99,7 @@ hospitals %>%
 
 The first plot suggests that more hospitals have helipads than those that don't. Grouping this by state, however, we can see that in some states (like California and New York), more hospitals don't have helipads than those that do. Faceting can help us zoom into the data for more geographic specificity. 
 
-Let's also facet data by a temporal variable. Assuming we have already converted a date/time variable in our dataset into a data/time format (using lubridate in lab 4), we should be able to extract a year, month, day (and if available hour, minute, and second) from the data using these lubridate functions:
+Let's also facet data by a temporal variable. Assuming we have already converted a date/time variable in our dataset into a date/time format (using lubridate in lab 4), we should be able to extract a year, month, day (and if available hour, minute, and second) from the data using these lubridate functions:
 
 * year(DATE_VARIABLE) will extract the year from the date
 * month(DATE_VARIABLE) will extract the month from the date
@@ -108,14 +108,14 @@ Let's also facet data by a temporal variable. Assuming we have already converted
 
 ```{r fig.height=5, fig.width=10}
 #without facet_wrap()
-hospitals %>% 
+hospitals_data %>% 
   ggplot(aes(x = STATUS)) + 
   geom_bar() +
   labs(title = "Number of Hospitals by Status", x ="Status", y = "Count of Hospitals" ) +
   theme_bw()
 
 #with facet_wrap()
-hospitals %>% 
+hospitals_data %>% 
   ggplot(aes(x = STATUS)) + 
   geom_bar() +
   labs(title = "Number of Hospitals by Status", x ="Status", y = "Count of Hospitals" ) +
@@ -136,7 +136,7 @@ world_health_econ %>%
   facet_wrap(~year) +
   labs(title = "Relationship between Country Total Health Spending Per Person and Life Expectancy", x = "Total Health Spending Per Person", y = "Life Expectancy", size = "Population", col = "Continent") + # To add titles and labels
   theme_bw() +
-  scale_size_continuous(range = c(1, 10), labels = scales::comma)
+  scale_size_continuous(range = c(1, 12), labels = scales::comma)
 ```
 
 Copy and paste a plot from one of your previous labs. Then copy it again and facet it by a geographic or temporal variable. 
@@ -254,7 +254,7 @@ head(cases_time_series)
 
 Note how the column headers are formatted above. When dates are stored as column names and not as values in and of themselves, it can be very difficult to manipulate the data based on dates. Remember that column names are not data in and of themselves but a reference to a vector of values. The dates in this dataset are a reference to a vector of case numbers. Because the date values are not represented *in* the data, but only as a reference to case numbers, we can't filter observations to specific dates or to dates that happened before or after another date. The code below reshapes the data so that such filtering is possible.  Using **gather()**, for every province/country in the dataset, a new row will be created in the dataset for every date data was reported. The reshaped data will have two new columns: Case.Date (the date reported) and Cases (the number reported on that date). Basically, we will take wide data (many columns with fewer rows), and reshape it into long data (fewer columns with more rows). 
 
-If you'd like to know more about how to use gather() to create tidy data, I highly recommend [this](https://r4ds.had.co.nz/tidy-data.html) chapter in R for Data Science.
+If you'd like to know more about how to use gather() to create tidy data, I highly recommend the [relevant chapter in R for Data Science](https://r4ds.had.co.nz/tidy-data.html).
 
 You'll also note above that R automatically places an "X" character in front of numeric column names. Below we remove that X character and then we transform the values into a date-time format.   
 
@@ -388,11 +388,12 @@ We always view data in a particular moment in time. However, over time, our unde
 
 Research in information studies has shown how even categories that have been institutionally standardized are constantly changing. For instance, Geoffrey Bowker and Susan Leigh Star have traced changes in the International Classification of Diseases (or the ICD) - a coding/classifcation system for diseases maintained by the World Health Organization. Medical professionals reference the ICD to diagnose patients based on symptoms and their social circumstances; in other words, every time an individual is diagnosed with something, that something has an associated code in the ICD. The ICD has been revised(with codes added, removed, reorganized, and edited) ten times - the most recent version of the classification system being ICD-11. These revisions not only reflect new research on diseases, but also changes in culture. For instance, how abortion gets coded in the ICD has been politically, ethically, and religiously charged. 
 
-While ICD-11 does have a classification for Covid-19, ICD-10 does not, and ICD-10 is considered current and in use until January 1, 2022 when it will be replaced by the new version. This means that, in the current system for assigning codes to diagnoses, there is no formal signifier for referring to the disease. Because of this, the WHO had to administer an emergency ICD-10 code for use in diagnosing patients with Covid-19. The current language system had to adapt to the new circumstances - and in this case very quickly. You can read more about this [here](https://www.who.int/classifications/icd/covid19/en/).
+While ICD-11 does have a classification for Covid-19, ICD-10 does not, and ICD-10 is considered current and in use until January 1, 2022 when it will be replaced by the new version. This means that, in the current system for assigning codes to diagnoses, there is no formal signifier for referring to the disease. Because of this, the World Health Organization (WHO) had to administer an emergency ICD-10 code for use in diagnosing patients with Covid-19. The current language system had to adapt to the new circumstances - and in this case very quickly. You can read more about this [on the WHO website](https://www.who.int/classifications/icd/covid19/en/).
 
 When we're working with data, these issues can matter a great deal. When classifications change in our data, i.e. when new terms become available, when categories break into two, or when signifers are removed, it also changes how we interpret quantities represented in the data. 
 
-For instance, when I worked for NYC's civic data team, I would regularly work with open 311 data. Every 311 call is coded with a certain category, such as Noise, No Heat and Hot Water in Building, Rat Sighting, or Broken Tree Limb. We would often filter the data to certain categories and create maps of the number of complaints deriving from different neighborhoods about that issue. However, these categories were collectively maintained by over 70 city agencies which were constantly changing how they recorded issues. For instance, In 2015, the category HEATING (referring to a heating issue in an apartment) changed to HEAT/HOT WATER. If we did not know that the categories were changing, we may have looked at the data and thought that there was a sudden drop off in heating complaints or a sudden uptick in hot water complaints - when in fact, it was just the language in encoded in the system changing. 
+For instance, when Poirier worked for NYC's civic data team, she would regularly work with open 311 data. As she explains:
+> Every 311 call is coded with a certain category, such as Noise, No Heat and Hot Water in Building, Rat Sighting, or Broken Tree Limb. We would often filter the data to certain categories and create maps of the number of complaints deriving from different neighborhoods about that issue. However, these categories were collectively maintained by over 70 city agencies which were constantly changing how they recorded issues. For instance, In 2015, the category HEATING (referring to a heating issue in an apartment) changed to HEAT/HOT WATER. If we did not know that the categories were changing, we may have looked at the data and thought that there was a sudden drop off in heating complaints or a sudden uptick in hot water complaints - when in fact, it was just the language in encoded in the system changing. 
 
 In what ways have semantics, along with the words used to represent certain meanings, changed over time in your dataset?
 
@@ -414,7 +415,7 @@ What confounding variable might you need to consider before assuming your calcul
 Fill your response here.
 ```
 
-What was one question you identified last week?
+What was another question you identified last week?
 
 ```{r eval=FALSE}
 Fill your response here.
@@ -424,215 +425,6 @@ What confounding variable might you need to consider before assuming your calcul
 
 ```{r eval=FALSE}
 Fill your response here.
-```
-
-## Continue your shiny app.
-
-We are now going to add the capacity for users to specify specific geographies and timeframes when viewing the data in our app. While I believe all of you have a geography represented in your data, some of you do not have date and time represented in your data. If this is the case, you may remove the commented data-time inputs from the code below. 
-
-At this point, we will begin working in the ui code block and creating more crosstalk between the ui and the server. Users will input information into the front end of the app, and that input will be communicated to the server. More specifically, users will select a geography and a data/timeframe, and the server will filter the dataset according to the selected features and recreate the values/plots on the filtered data. 
-
-Be sure to follow all commented instructions below to add inputs to your Shiny app. 
-
-```{r}
-geo_input_choices <- 
-  #REPLACE hospitals BELOW WITH YOUR OWN DATAFRAME
-  hospitals %>% 
-  #REPLACE STATE BELOW WITH YOUR OWN GEOGRAPHIC VARIABLE
-  select(STATE) %>% 
-  distinct() %>% 
-  #REPLACE STATE BELOW WITH YOUR OWN GEOGRAPHIC VARIABLE
-  arrange(STATE)
-
-#REMOVE LINES BELOW IF YOU DO NOT HAVE A TEMPORAL VARIABLE IN YOUR DATAFRAME
-date_input_start <- 
-  #REPLACE hospitals BELOW WITH YOUR OWN DATAFRAME
-  hospitals %>% 
-  #REPLACE SOURCEDATE BELOW WITH YOUR OWN TEMPORAL VARIABLE
-  summarize(date = min(SOURCEDATE))
-
-date_input_end <- 
-  #REPLACE hospitals BELOW WITH YOUR OWN DATAFRAME
-  hospitals %>% 
-  #REPLACE SOURCEDATE BELOW WITH YOUR OWN TEMPORAL VARIABLE
-  summarize(date = max(SOURCEDATE))
-#REMOVE LINES ABOVE IF YOU DO NOT HAVE A TEMPORAL VARIABLE IN YOUR DATAFRAME
-```
-
-Replace the title with your own below. Also comment out or remove the lines regarding the temporal variable if you do not have a temporal variable in your dataset.
-
-```{r}
-ui <- dashboardPage(
-  
-  #REPLACE 'TITLE HERE' BELOW WITH YOUR OWN TITLE
-  dashboardHeader(title = "TITLE HERE"),
-  #REPLACE 'TITLE HERE' ABOVE WITH YOUR OWN TITLE
-  
-  dashboardSidebar(
-      selectInput(inputId = "geo_val", label = "Select an geography:", choices = geo_input_choices, selected = geo_input_choices[1]),
-      #REMOVE LINE BELOW IF YOU DO NOT HAVE A TEMPORAL VARIABLE IN YOUR DATAFRAME
-      dateRangeInput(inputId = "date_val", label = "Select a date range:", start = date_input_start$date, end = date_input_end$date)
-      #REMOVE LINE ABOVE IF YOU DO NOT HAVE A TEMPORAL VARIABLE IN YOUR DATAFRAME
-  ),
-  
-  dashboardBody(
-      infoBoxOutput("value1", width = 4),
-      infoBoxOutput("value2", width = 4),
-      infoBoxOutput("value3", width = 4),
-   
-      box(plotOutput("plot1")),
-      box(plotOutput("plot2")),
-      box(plotOutput("plot3")),
-      box(plotOutput("plot4"))
-
-  )
-)
-```
-
-In each of your functions below, you are going to add a filter statement, filtering to the user input. You may begin by copying and pasting your server function from lab 6 into this section. Then you are going to add the filter condition that I've listed below to each calculation and plot:
-
-      filter(
-        STATE == input$geo_val & 
-        SOURCEDATE > input$date_val[1] &
-        SOURCEDATE < input$date_val[2]
-        )
-        
-Be sure to replace STATE with your geographic variable and SOURCEDATE with your temporal variable in the above filter condition.  
-
-```{r}
-server <- function(input, output) {
-  
-  output$value1 <- renderInfoBox({
-    quant_insight1 <-
-    #REPLACE hospitals BELOW WITH YOUR OWN DATAFRAME
-    hospitals %>% 
-    #REPLACE STATE WITH YOUR OWN GEOGRAPHIC VARIABLE AND SOURCEDATE WITH YOUR OWN TEMPORAL VARIABLE
-      filter(
-        STATE == input$geo_val & 
-        SOURCEDATE > input$date_val[1] &
-        SOURCEDATE < input$date_val[2]
-        ) %>%      
-    #COPY AND PASTE YOUR FUNCTION HERE FROM LAB 6
-      filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE") %>%
-      summarize(median_value = median(BEDS, na.rm = TRUE))
-    
-    #REPLACE 'FILL DESCRIPTION HERE' BELOW WITH YOUR OWN DESCRIPTION
-    infoBox(quant_insight1,'FILL DESCRIPTION HERE', icon = icon("stats", lib='glyphicon'), color = "purple")
-  })
-  
-  output$value2 <- renderInfoBox({
-    quant_insight2 <- 
-    #REPLACE hospitals BELOW WITH YOUR OWN DATAFRAME
-    hospitals %>% 
-    #REPLACE STATE WITH YOUR OWN GEOGRAPHIC VARIABLE AND SOURCEDATE WITH YOUR OWN TEMPORAL VARIABLE
-      filter(
-        STATE == input$geo_val & 
-        SOURCEDATE > input$date_val[1] &
-        SOURCEDATE < input$date_val[2]
-        ) %>%
-    #COPY AND PASTE YOUR FUNCTION HERE FROM LAB 6
-      filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE") %>%
-      summarize(median_value = median(BEDS, na.rm = TRUE))
-    
-    #REPLACE 'FILL DESCRIPTION HERE' BELOW WITH YOUR OWN DESCRIPTION
-    infoBox(quant_insight2,'FILL DESCRIPTION HERE', icon = icon("stats", lib='glyphicon'), color = "purple")
-  })
-  
-  output$value3 <- renderInfoBox({
-    quant_insight3 <- 
-    #REPLACE hospitals BELOW WITH YOUR OWN DATAFRAME
-    hospitals %>% 
-    #REPLACE STATE WITH YOUR OWN GEOGRAPHIC VARIABLE AND SOURCEDATE WITH YOUR OWN TEMPORAL VARIABLE
-      filter(
-        STATE == input$geo_val & 
-        SOURCEDATE > input$date_val[1] &
-        SOURCEDATE < input$date_val[2]
-        ) %>%
-    #COPY AND PASTE YOUR FUNCTION HERE FROM LAB 6
-      filter(STATUS == "OPEN" & TYPE == "GENERAL ACUTE CARE") %>%
-      summarize(median_value = median(BEDS, na.rm = TRUE))
-
-    #REPLACE 'FILL DESCRIPTION HERE' BELOW WITH YOUR OWN DESCRIPTION
-    infoBox(quant_insight3,'FILL DESCRIPTION HERE', icon = icon("stats", lib='glyphicon'), color = "purple")
-  })
-  
-  output$plot1 <- renderPlot({
-    #REPLACE hospitals BELOW WITH YOUR OWN DATAFRAME
-    hospitals %>% 
-    #REPLACE STATE WITH YOUR OWN GEOGRAPHIC VARIABLE AND SOURCEDATE WITH YOUR OWN TEMPORAL VARIABLE
-      filter(
-        STATE == input$geo_val & 
-        SOURCEDATE > input$date_val[1] &
-        SOURCEDATE < input$date_val[2]
-        ) %>%
-    #COPY AND PASTE YOUR PLOT HERE FROM LAB 6
-      filter(STATUS == "OPEN") %>%
-      ggplot(aes(x = TYPE)) + 
-      geom_bar() +
-      labs(title = "Number of Hospitals in the US that are Open by Type", x = "Type", y = "Count of Hospitals") + 
-      theme_bw() +
-      theme(axis.text.x = element_text(angle = 90, hjust=1)) 
-  })
-  
-  output$plot2 <- renderPlot({
-    #REPLACE hospitals BELOW WITH YOUR OWN DATAFRAME
-    hospitals %>% 
-    #REPLACE STATE WITH YOUR OWN GEOGRAPHIC VARIABLE AND SOURCEDATE WITH YOUR OWN TEMPORAL VARIABLE
-      filter(
-        STATE == input$geo_val & 
-        SOURCEDATE > input$date_val[1] &
-        SOURCEDATE < input$date_val[2]
-        ) %>%
-    #COPY AND PASTE YOUR PLOT HERE FROM LAB 6
-      filter(STATUS == "OPEN") %>%
-      ggplot(aes(x = TYPE)) + 
-      geom_bar() +
-      labs(title = "Number of Hospitals in the US that are Open by Type", x = "Type", y = "Count of Hospitals") + 
-      theme_bw() +
-      theme(axis.text.x = element_text(angle = 90, hjust=1)) 
-  })
-  
-  output$plot3 <- renderPlot({
-    #REPLACE hospitals BELOW WITH YOUR OWN DATAFRAME
-    hospitals %>% 
-    #REPLACE STATE WITH YOUR OWN GEOGRAPHIC VARIABLE AND SOURCEDATE WITH YOUR OWN TEMPORAL VARIABLE
-      filter(
-        STATE == input$geo_val & 
-        SOURCEDATE > input$date_val[1] &
-        SOURCEDATE < input$date_val[2]
-        ) %>%
-    #COPY AND PASTE YOUR PLOT HERE FROM LAB 6
-      filter(STATUS == "OPEN") %>%
-      ggplot(aes(x = TYPE)) + 
-      geom_bar() +
-      labs(title = "Number of Hospitals in the US that are Open by Type", x = "Type", y = "Count of Hospitals") + 
-      theme_bw() +
-      theme(axis.text.x = element_text(angle = 90, hjust=1)) 
-  })
-  
-  output$plot4 <- renderPlot({
-    #REPLACE hospitals BELOW WITH YOUR OWN DATAFRAME
-    hospitals %>% 
-    #REPLACE STATE WITH YOUR OWN GEOGRAPHIC VARIABLE AND SOURCEDATE WITH YOUR OWN TEMPORAL VARIABLE
-      filter(
-        STATE == input$geo_val & 
-        SOURCEDATE > input$date_val[1] &
-        SOURCEDATE < input$date_val[2]
-        ) %>%
-    #COPY AND PASTE YOUR PLOT HERE FROM LAB 6
-      filter(STATUS == "OPEN") %>%
-      ggplot(aes(x = TYPE)) + 
-      geom_bar() +
-      labs(title = "Number of Hospitals in the US that are Open by Type", x = "Type", y = "Count of Hospitals") + 
-      theme_bw() +
-      theme(axis.text.x = element_text(angle = 90, hjust=1)) 
-  })
-  
-}
-```
-
-```{r}
-shinyApp(ui, server)
 ```
 
 

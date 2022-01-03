@@ -1,0 +1,1218 @@
+---
+  editor_options: 
+    markdown: 
+      wrap: 72
+  markdown: 
+  wrap: 72
+---
+
+# Lab 5: Visualizing Data with ggplot
+
+## Instructions and Overview
+
+In this assignment, we will continue exploring your data by examining
+how values of chosen variables change relative to each other -- in other
+words, at measures of *covariation* as well as *variation* -- and how to
+graph that data, which can make these co/variations easier to detect.
+We'll look at some different ways to plot data, and ways to calculate
+relationships between variables.
+
+To begin you will need to import and clean a dataset, for which you're
+totally encouraged to use your existing code from lab 3 or 4: just
+extract the bits that you actually needed to get your data looking clean
+and ready, with variables in the right classes. **You may, if you wish,
+work together as a group on a shared dataset.** In that case, only one
+lab, on one set of data, needs to be turned in for the whole group. Even
+in that case, however, *I expect you to actually work together*, so that
+you all understand what your code is doing, and why.
+
+As in Lab 4, I will periodically ask you to pause and connect the coding
+skills and outputs with the larger questions that led you to your data
+in the first place. These will take form of the following prompts:
+
+**QUERY**: I'll ask you to write a research question that the adjacent
+code chunk is designed to be able to answer. Make sure you phrase your
+question directly in relation to the variables and functions used in the
+code. Consider this a check on whether you understand what the code is
+doing. If you are unsure how to compose this question from the code, or
+the code from the question, you probably want to study the examples and
+templates more closely. Ask me if you get stuck.
+
+**RESULTS**: Reviewing the output of your code, summarize one thing that
+you learn about your topic from running this code chunk. In other words,
+what is one thing that the results of this analysis empirically tell us
+about the topic? Be specific, considering the geographic, temporal, and
+topical scope of your data.
+
+**DISCUSSION**: Imagine you are reporting your findings to a
+decision-maker on your topic. Describe to that decision-maker what is
+important about this finding -- what it helps you see or say. Consider,
+also, what new questions your answer raises: What else would we need to
+know to fully address this question? Knowing what you know about how the
+data was collected and aggregated, what uncertainties remain in regards
+to addressing this question? In what ways is the analysis limited by the
+scope of the data's definitions or categories?
+
+## Getting Started
+
+### Load the relevant libraries
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(jsonlite)
+# library(readxl)      # uncomment if you use Excel files
+```
+
+### Import and clean example datasets
+
+This should look pretty familiar from Lab 4:
+
+```{r}
+# load Hospitals dataset 
+hospitals <- fromJSON("https://opendata.arcgis.com/datasets/6ac5e325468c4cb9b905f1728d6fbf0f_0.geojson")
+hospitals_data <- hospitals$features$properties
+
+# convert NA-like values to NA
+hospitals_data <- na_if(hospitals_data, "NOT AVAILABLE")
+hospitals_data <- na_if(hospitals_data, -999)
+
+# convert date-like values to dates
+hospitals_data$SOURCEDATE <- parse_date_time(hospitals_data$SOURCEDATE, orders = "ymd HMS")
+hospitals_data$VAL_DATE <- parse_date_time(hospitals_data$VAL_DATE, orders = "ymd HMS")
+
+
+# load COVID-19 dataset
+cases <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
+
+# rejoice that the Covid-19 data is already tidy, with variables in the right formats!
+
+```
+
+### Your turn
+
+Gather the code you or a partner wrote in lab 3 and/or 4 to import and
+clean your dataset, and paste it into the chunk below.
+
+```{r}
+# Once you're code's pasted below, run the chunk to load your data into R's memory and clean it up.
+
+
+
+```
+
+## Introducing the Grammar of Graphics
+
+The main tidyverse library for producing graphs is ggplot2, and the main
+function you'll call is `ggplot()`. This library is automatically loaded
+when you run `library(tidyverse)`, because the code maintainers assume
+you're going to want to produce graphs.
+
+Why? In a nutshell, visualizing data compresses a lot of numbers and
+values into a small space, which can have the effect of amplifying
+signals about relationships: distribution, centrality, correlation,
+rank. It desn't *always* work: it is entirely possible to create a graph
+that's too cluttered, or too visually challenging to parse, to make any
+sense of; and to be sure, sometimes the relationship you hypothesized
+you would find just isn't there (see the comic below). But for the most
+part, if you play your cards right -- and Stephen Few and Lindsay
+Poirier have a good many tips for how to do that -- graphing your data
+can help you see it better. And that's as true when you're just figuring
+out what stories your data can tell as when you're ready to tell those
+stories to an outside audience.
+
+The `ggplot()` function is designed to make it easier to shuffle your
+cards, so to speak. You begin by identifying the elements of your
+dataset that you want to plot, and then you add on layers of visual
+logic, each of which is then easier to adjust, add on, or take away. In
+that sense, it works much like the dplyr functions in the last two labs,
+where you begin with some dataset and add on a series of pipes to filter
+and arrange and mutate (make calculations from) the elements.
+
+### The general structure
+
+To make a plot, generally speaking, you'll specify some *data*, some
+*coordinate system* that maps the plot area to variables within that
+data, and some *geometry* that tells R how to visibly represent the
+coordinates you've chosen. Here's how it looks for one basic chart type,
+the bar plot:
+
+```{r}
+
+## Template:
+# DATASET %>%                                  # Pipe the data into the `ggplot()` function
+#   ggplot(aes(x = CATEGORICAL_VARIABLE)       # Set the coordinate system with a call to `aes()` (for aesthetic),
+#                                              # a naming convention I frankly find kind of confusing, but there it is.
+#         ) +                                  # Then close the ggplot parenthesis and add a plus sign to say there's more:
+#   GEOM_FUNCTION() +                          # including, crucially, a chart type (more on that in a sec),
+#   labs(title = TITLE_OF_FIGURE,              # and labels, so we know what we're looking at.
+#        x = LABEL_FOR_X_AXIS,
+#        y = LABEL_FOR_Y_AXIS)                 # By default, a bar plot is a frequency plot: it will map y to 
+#                                              # the number of instances for each category in x.
+
+hospitals_data %>% 
+  ggplot(aes(x = TYPE)) + 
+  geom_bar() +
+  labs(title = "Number of Hospitals in the US by Type", 
+       x = "Type", 
+       y = "Count of Hospitals") 
+```
+
+I'll expect you to add a title to every plot you produce for this class:
+at a minimum, we need to know what the values in the graph represent.
+Remember last week, when you identified what makes each observation in
+your dataset unique? Here we are counting the observations by Type, and
+in order to know what we're counting, we need to know what each
+observation refers to. For the time being, a simple description is
+enough: "Number of [units being counted] by [x-axis variable name]." As
+you get into more argumentative genres later on, you might want to add a
+verb to that noun phrase to emphasize what you think the graph is
+*telling* us.
+
+### Cleaning up the output
+
+Those x-axis labels don't look so great, do they? This is a very common
+problem, and so of course there's a built-in command we can add to fix
+it:
+
+```{r}
+hospitals_data %>% 
+  ggplot(aes(x = TYPE)) + 
+  geom_bar() +
+  labs(title = "Number of Hospitals in the US by Type", 
+       x = "Type", 
+       y = "Count of Hospitals") +                            # don't forget the plus sign!
+  theme(axis.text.x = element_text(angle = 90, hjust=1))      # rotate x-axis tick labels 90 degrees, 
+                                                              # justified at the axis end. 
+```
+
+See how we can just tack on another `+` and adjust the resulting plot?
+That's the heart of the ggplot approach. You can also assign the plot
+command to a variable, and add onto that:
+
+```{r}
+### Run this code chunk one group at a time, using Cmd+Enter (on a Mac) or Ctrl+Enter (on a PC).
+
+# This won't produce a plot, because it's assignment:
+p <- hospitals_data %>% 
+  ggplot(aes(x = TYPE)) + 
+  geom_bar() +
+  labs(title = "Number of Hospitals in the US by Type", 
+       x = "Type", 
+       y = "Count of Hospitals")
+
+# This, though, will reproduce the previous plot:
+p + theme(axis.text.x = element_text(angle = 90, hjust=1))
+
+# And this will show another way of solving the label problem:
+p + coord_flip()
+
+```
+
+### Layers on layers on layers
+
+The ability to keep adding to a saved plot variable is useful for when
+you're experimenting with different settings, like how numbers are
+displayed:
+
+```{r}
+p + 
+  coord_flip() + 
+  scale_y_continuous(labels = scales::comma)    # converts all sorts of numbers into traditional comma notation
+```
+
+Or even for adding entirely aesthetics, such as size or color based on
+some variable's values:
+
+```{r}
+p + aes(fill = OWNER) +
+  theme(axis.text.x = element_text(angle = 90, hjust=1))
+  
+```
+
+This is where ggplot really shines: it's easy to add entire new layers
+of information by mapping additional variables onto the coordinate
+system with `aes()`, and ggplot will automatically generate a legend to
+go with it. For a list of what coordinates you can use, see the
+[ggplot2-specs
+vignette](https://cran.r-project.org/web/packages/ggplot2/vignettes/ggplot2-specs.html)
+(or type `vignette("ggplot2-specs")` in your R console).
+
+All of those mappings, including the specific colors used, are
+potentially configurable. The `theme()` function we used to adjust the
+axis direction has a ridiculously large number of parameters, which you
+can see at `?ggplot2::theme`; for convenience, several standard settings
+are available as functions. For the rest of this lab, for example, I'll
+be adding the `theme_bw()` setting to remove some of that background
+gray. Note that any tweaks we want to make -- including that axis
+rotation -- will have to come after one of those functions, so the
+function doesn't reset our adjustments.
+
+### ggplot can be a lot. Don't get overwhelmed.
+
+For a list of the most common things people do with ggplot, **I highly
+recommend the [ggplot
+cheatsheet](https://github.com/rstudio/cheatsheets/blob/master/data-visualization-2.1.pdf)**,
+which you can find right on top of the [full list of R
+cheatsheets](https://www.rstudio.com/resources/cheatsheets/).
+
+We'll also be going back through how to structure more basic plots in
+the remainder of this lab, so if that stacked bar is just too much right
+now, don't panic. (It's also poorly sorted, which doesn't help. I'll
+want to talk about that a little further on.)
+
+And if you'd like to just walk through a tutorial before you come back
+here and practice coding with and reflecting on your own data, there's a
+good one at
+<http://r-statistics.co/Complete-Ggplot2-Tutorial-Part1-With-R-Code.html>.
+
+## Basic chart types (geoms)
+
+At its heart, each chart type is a way of expressing a different kind of
+relationship, of the kind Stephen Few discusses in his chapter on
+"Simple Statistics to Get You Started" (in *Show Me the Numbers*): as he
+puts it (Few 37), these include
+
+-   Simple associations between quantitative values and categorical
+    items, or
+-   More complex associations among multiple sets of quantitative values
+
+Let's start with the former, shall we?
+
+### Frequency bar plots: geom_bar()
+
+Bar plots help us understand the relationship between a categorical
+variable and an associated quantitative variable: in the example above,
+the quantitative variable was frequency, or the number of times each
+category is observed.
+
+Remember that for multidimensional datasets, where you need more than
+one variable to uniquely identify an observation, you might have to
+filter before you can produce a reasonable graph. For instance, let's
+say your data reports a value for a location and time, as in the NY
+Times COVID dataset (`cases`). Now let's say that you wanted to plot the
+number of counties per state. If you were to call:
+
+```{r}
+# This is inaccurate for multidimensional data!
+
+cases %>% 
+  ggplot(aes(x = state)) + 
+  geom_bar() +
+  labs(title = "Number of Counties per State - Incorrect", 
+       x = "State", 
+       y = "Count of Counties") + #Adds a title to the plot
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust=1)) +    # Change x-axis tick labels 90 degrees 
+  scale_y_continuous(labels = scales::comma)
+```
+
+... you would be counting the combination of the number of counties *and
+dates* per state. There are not 33,000 countries in Alabama, but Alabama
+appears in the dataset over 33,000 times because each county has several
+rows in the dataset -- one for each reporting date. In other words, each
+county is represented in the bar for every day that it was included in
+the dataset. The y-axis does not just represent counties but both
+counties and dates. If we want the y-axis to only be counting one thing,
+then we need to first reduce the dataset to values in a particular
+context. You can do this by filtering the data as you practiced in the
+previous lab.
+
+```{r}
+# Choose a date to filter on
+most_recent <- max(cases$date, na.rm = TRUE)
+
+cases %>% 
+  filter(date == most_recent) %>%
+  ggplot(aes(x = state)) + 
+  geom_bar() +
+  labs(title = paste("Number of Counties per State as of", most_recent),    # add a title to the plot
+       x = "State", 
+       y = "Count of Counties") + 
+  theme_bw() + 
+  scale_y_continuous(labels = scales::comma) +
+  theme(axis.text.x = element_text(angle = 90, hjust=1))                    # change x-axis tick labels 90 degrees
+```
+
+> Note the addition to my title above. If you filter your dataset, the
+> formula for titling changes a bit to Frequency of [x-axis variable
+> name] per [unit] in/as of [filtered value]
+
+The "as of" makes sense for time, but if time weren't a factor -- or if
+time was the variable you were interested in comparing, while you fixed
+place -- then "in" might make more sense. e.g. "Number of COVID-19 cases
+per day in Pennsylvania."
+
+#### Your turn
+
+Select a categorical variable for which you want to investigate the
+number of times each category appears in the dataset, and create a bar
+plot by imitating one of the templates in the next code chunk.
+
+I recommend that you select one of the same categorical variables that
+you analyzed with the distinct() function last week. If you have
+multi-dimensional data, be sure to filter your data first so that all of
+the observations you are counting have one variable as a unique key.
+
+```{r}
+## Template for multidimensional data:
+# DATASET %>%
+#   filter(DISTINGUISHING_VARIABLE == "DISTINGUISHING_VALUE") %>%   
+#   ggplot(aes(x = CATEGORICAL_VARIABLE)) +
+#   labs(title = "NUMBER OF [COUNTED UNIT] PER [CATEGORY UNIT] AS OF / IN [DISTINGUISHING_VALUE]",
+#        x = "CATEGORICAL_VARIABLE",
+#        y = "NUMBER OF [COUNTED UNIT]") +
+#   geom_bar()                             
+
+## Template for one-dimensional data:
+# DATASET %>%
+#   ggplot(aes(x = CATEGORICAL_VARIABLE)) +
+#   labs(title = "NUMBER OF [COUNTED UNIT] PER [CATEGORY UNIT]",
+#        x = "CATEGORICAL_VARIABLE",
+#        y = "NUMBER OF [COUNTED UNIT]") +
+#   geom_bar()                         
+
+# If need be, add the axis adjustments from above, and don't forget the plus (`+`)!
+#   theme_bw() +                            
+#   scale_y_continuous(labels = scales::comma) +
+#   theme(axis.text.x = element_text(angle = 90, hjust=1))
+
+
+
+
+
+
+```
+
+Look back at the code you just wrote. Can you say back what you're doing
+with that code (your *query*), what you're learning (a *result*), and
+what that might imply, or what it makes you wonder (a *discussion*)?
+
+Fill in your responses below:
+
+> **Query**:\
+> \
+> **Result**:\
+> \
+> **Discussion**:
+
+### Other bar plots: geom_col()
+
+A bar plot that relates its categories to some other quantity besides
+frequency is, in the world of ggplot, called a column plot, or
+geom_col().
+
+```{r}
+## Template:
+# DATASET %>% 
+#   ggplot(aes(x = VARIABLE_NAME, 
+#              y = VARIABLE_NAME)) + 
+#   labs(title = "PLOT_TITLE", x = "X-AXIS_LABEL", y = "Y-AXIS_LABEL") + 
+#   geom_col()
+
+hospitals_data %>% 
+  ggplot(aes(x = TYPE, 
+             y = BEDS)) + 
+  labs(title = "Number of Beds in US Hospitals by Type", 
+       x = "Hospital Type", 
+       y = "Number of Beds") + 
+  geom_col() +
+  theme_bw() + 
+  scale_y_continuous(labels = scales::comma) +   # converts all sorts of numbers into traditional comma notation 
+  coord_flip()                                   # makes the "columns" horizontal (but note that it's still the y-variable!)
+  
+```
+
+#### Your turn
+
+Now, in addition to a categorical variable, consider what quantitative
+variables you expect will have different values depending on the
+category. Then create a column plot by imitating one of the templates in
+the next code chunk.
+
+If you have multi-dimensional data, be sure to filter your data first so
+that all of the observations you are counting have one variable as a
+unique key.
+
+```{r}
+## Template for multidimensional data:
+# DATASET %>%
+#   filter(DISTINGUISHING_VARIABLE == "DISTINGUISHING_VALUE") %>%   
+#   ggplot(aes(x = CATEGORICAL_VARIABLE,
+#              y = QUANTITATIVE_VARIABLE)) +
+#   labs(title = "MEASURE OF [COUNTED UNIT] PER [CATEGORY UNIT] AS OF / IN [DISTINGUISHING_VALUE]",
+#        x = "CATEGORICAL_VARIABLE",
+#        y = "QUANTITATIVE_VARIABLE") +
+#   geom_col()                             
+
+## Template for one-dimensional data:
+#DATASET %>%
+#   filter(DISTINGUISHING_VARIABLE == "DISTINGUISHING_VALUE") %>%   
+#   ggplot(aes(x = CATEGORICAL_VARIABLE,
+#              y = QUANTITATIVE_VARIABLE)) +
+#   labs(title = "MEASURE OF [COUNTED UNIT] PER [CATEGORY UNIT]",
+#        x = "CATEGORICAL_VARIABLE",
+#        y = "QUANTITATIVE_VARIABLE") +
+#   geom_col()                                                  
+
+# If need be, add the axis adjustments from above, and don't forget the plus (`+`)!
+#   theme_bw() +                            
+#   scale_y_continuous(labels = scales::comma) +
+#   theme(axis.text.x = element_text(angle = 90, hjust=1))
+
+
+
+
+
+
+```
+
+Look back at the code you just wrote. Can you say back what you're doing
+with that code (your *query*), what you're learning (a *result*), and
+what that might imply, or what it makes you wonder (a *discussion*)?
+
+Fill in your responses below:
+
+> **Query**:\
+> \
+> **Result**:\
+> \
+> **Discussion**:
+
+### On sorting your graphs
+
+It's important, as I mentioned in the last lab, to *have the order of
+your plot mean something*. We can do better than the random skyscrapers
+produced by alphabetization, right? That's no way to compare values!
+Let's see if we can sort the data so it's more meaningful.
+
+Turns out, for categories, it's a little trickier than you might expect.
+But once you know what ggplot wants to hear, it's not actually hard.
+
+```{r}
+
+# A naive approach: let's just pre-sort the data
+hd1 <- hospitals_data %>%
+  group_by(TYPE) %>%
+  summarize(TOTAL_BEDS = sum(BEDS, na.rm = T)) %>%
+  arrange(desc(TOTAL_BEDS))
+
+head(hd1)     # yup, it's sorted in the table
+
+              # but the graph is weirdly unsorted!
+ggplot(hd1,
+       aes(x = TYPE,
+           y = TOTAL_BEDS)) +
+  geom_col() +    
+  labs(title = "Number of Beds in US Hospitals by Type (Failed to Sort)", 
+         x = "Hospital Type", 
+         y = "Number of Beds") +
+  scale_y_continuous(labels = scales::comma) +   # converts all sorts of numbers into traditional comma notation 
+  coord_flip()                                   # makes the "columns" horizontal (but note that it's still the y-variable!) 
+
+```
+
+The problem is, `ggplot()` is trying to be too clever for its own good.
+It infers that `hospitals_data$STATE` is a categorical variable, and so
+it's treating it as the data type *factor* -- which has an inherent
+order, defaulting to alphabetical. In order to get around this problem,
+we need one more tidyverse library: forcats. (It's an anagram of
+factors... and it's for categories. See? Too clever for its own good.)
+
+The forcats function **`fct_reorder`** allows you to quickly choose how
+to order a categorical variable, i.e. a factor. Here's how it looks:
+
+```{r}
+
+library(forcats)
+
+hd2 <- hospitals_data %>%
+  group_by(TYPE) %>%
+  summarize(TOTAL_BEDS = sum(BEDS, na.rm = T)) %>%
+  mutate(TYPE = fct_reorder(TYPE, desc(TOTAL_BEDS)))         # we re-assign the categorical variable using the new order
+  
+
+head(hd2)       # even if it looks unsorted (which we could fix with `arrange()`)...
+                # the graph will now be sorted
+hd2 %>%
+ggplot(aes(x = TYPE,
+           y = TOTAL_BEDS)) +    
+  labs(title = "Number of Beds in US Hospitals by Type (Sorted by Count)", 
+         x = "Hospital Type", 
+         y = "Number of Beds") +
+  geom_col() +             
+  scale_y_continuous(labels = scales::comma) +   # converts all sorts of numbers into traditional comma notation 
+  coord_flip() +                                 # makes the "columns" horizontal (but note that it's still the y-variable!)
+  theme_bw() 
+```
+
+> In your graphs, look for sensible ways to sort -- often by whatever
+> variable is mapped to y -- and use the `fct_reorder()` function to
+> achieve it.
+
+See also `?fct_reorder`.
+
+### Your turn
+
+Follow the templates below to remake at least one of the two figures you
+coded above (your bar plot or your column plot) so that the categorical
+variables are arranged according to some quantitative value.
+
+```{r}
+## Template for column chart
+# DATASET %>%
+#   filter(DISTINGUISHING_VARIABLE == "DISTINGUISHING_VALUE") %>%       # if needed for multidimensional data
+#   mutate(CATEGORICAL_VARIABLE = fct_reorder(CATEGORICAL_VARIABLE, QUANTITATIVE_VARIABLE)) %>%     # reordering step
+#   ggplot(aes(x = CATEGORICAL_VARIABLE,
+#              y = QUANTITATIVE_VARIABLE)) +
+#   labs(title = "MEASURE OF [COUNTED UNIT] PER [CATEGORY UNIT]",
+#        x = "CATEGORICAL_VARIABLE",
+#        y = "QUANTITATIVE_VARIABLE") +
+#   geom_col()                                                  
+
+
+## Template for bar chart:
+# DATASET %>%
+#   filter(DISTINGUISHING_VARIABLE == "DISTINGUISHING_VALUE") %>%    # if needed for multidimensional data
+#   mutate(CATEGORICAL_VARIABLE = fct_reorder(CATEGORICAL_VARIABLE, QUANTITATIVE_VARIABLE)) %>%     # reordering step
+#   ggplot(aes(x = CATEGORICAL_VARIABLE)) +
+#   labs(title = "NUMBER OF [COUNTED UNIT] PER [CATEGORY UNIT] AS OF / IN [DISTINGUISHING_VALUE]",
+#        x = "CATEGORICAL_VARIABLE",
+#        y = "NUMBER OF [COUNTED UNIT]") +
+#   geom_bar()   
+
+```
+
+Look back at the code you just wrote. Can you say back what you're doing
+with that code (your *query*), what you're learning (a *result*), and
+what that might imply, or what it makes you wonder (a *discussion*)?
+
+Fill in your responses below:
+
+> **Query**:\
+> \
+> **Result**:\
+> \
+> **Discussion**:
+
+*Hint:* It may help to reflect on the distribution of categories in the
+dataset. Is there an even distribution of observations across each
+category, or are certain categories more represented than others? Why
+might this be? What does this say about the social, political, or
+economic landscape of your topic? How have the social, political, and
+economic forces shaping this categorization impacted how we count
+observations related to this topic? What might be one topic or issue
+that does not fit neatly into the designated categories?
+
+### Histograms (geom_histogram)
+
+A *histogram* will display the distribution of values in a numeric
+variable within a designated set of increments. In that sense, a
+histogram is to quantitative data as a bar plot is to categorical data.
+
+After you designate a certain number to group increments by, it will
+*count* the number of values in the variable that fall into each
+increment. Let's say you designate the number 10 to group increments by,
+starting at 0. The plot will count how many values in the variable fall
+in the increment 0-9, 10-19, 20-29, and so on. This will tell us how the
+observations in the dataset *vary* in regards to that variable.
+
+Consider the plot below, which tells us the distribution of beds across
+open hospitals. It counts how many *hospitals* there are with each
+increment of 10 *beds*.
+
+```{r fig.height=5, fig.width=10}
+
+# Template:
+# DATASET %>% 
+#   ggplot(aes(x = NUMERIC_VARIABLE)) + 
+#   geom_histogram(binwidth = 1, boundary = 0) + 
+#   labs(title = "TITLE_OF_PLOT", 
+#        x = "X-AXIS_LABEL", 
+#        y = "Y-AXIS_LABEL")
+
+p <- hospitals_data %>% 
+  filter(STATUS == "OPEN") %>%
+  ggplot(aes(x = BEDS)) +
+  labs(title = "Distribution of Beds across Hospitals in the US that are Open", x = "Beds", y = "Count of Hospitals") +
+  theme_bw()
+
+p + geom_histogram(binwidth = 10, 
+                 boundary = 0) 
+```
+
+Note that `boundary` refers to where we want our increments to begin and
+`binwidth` refers to the size of the increments at which frequency will
+be calculated. Above the binwidth is set to 10. This means that ggplot
+will display the frequency of each value at intervals of 10, 20, 30, 40,
+etc. When we set the binwidth to 1, ggplot will display the frequency of
+each value at intervals of 1, 2, 3, 4. etc. What difference does this
+make?
+
+Notice what happens when we set the binwidth to 1. While above we count
+the number of hospitals with 0-9 beds 10-19 beds, 20-29 beds, etc, this
+will count the number of hospitals with 0 beds, 1 bed, 2 beds, and so
+on. Because we are counting the number in such small increments, the
+plot will look much more jagged and will take a longer time to load.
+This plot displays the counts in *finer granularity* than the first
+plot.
+
+```{r fig.height=5, fig.width=10}
+
+p + geom_histogram(binwidth = 1, boundary = 0)
+```
+
+When we set the binwidth to 100, we count the number of hospitals with
+0-99 beds, 100-199 beds, 200-299 beds, and so on. Because we are
+counting the number in larger increments, the plot will look much
+smoother and will take less time to load.
+
+```{r fig.height=5, fig.width=10}
+#Run this code chunk.
+
+p + geom_histogram(binwidth = 100, boundary = 0)
+```
+
+This plot displays the counts in *thicker granularity* than the first
+plot.
+
+#### Titling a Histogram
+
+Note how I titled my plot above: "Distribution of Beds across Hospitals
+in the US that are Open." To know what we're counting across, you must
+consider again what makes each observation unique. A good formula for
+titling histograms is as follows: "Distribution of [x-axis variable
+name] across [observations]."
+
+Again, we can fill in the blank with our observational unit. The [x-axis
+variable name] should be your x-label and "Count of \_\_\_\_\_\_"
+(filled the same as above) should be your y-label.
+
+With multidimensional data, you again have to filter down to some shared
+observational unit before you can construct a meaningful histogram --
+otherwise, we're visualizing multiple values for each place or time. But
+you can zoom in:
+
+```{r}
+
+max_date <- max(cases$date, na.rm = T)
+
+
+cases %>%
+  filter(date == max_date) %>%
+  ggplot(aes(x = cases)) + 
+  labs(title = paste("Distribution of COVID-19 cases across US counties as of", max_date),
+       x = "Total cases",
+       y = "Number of counties") +
+  geom_histogram(boundary = 0,
+                 binwidth = 1000) + 
+  theme_bw() + 
+  scale_x_continuous(limit = c(0, 250000),     # don't extend x-axis past 250,000, so we have a chance of seeing something
+                     labels = scales::comma)
+
+```
+
+#### Your turn
+
+Select a numeric variable for which you want to visualize the
+distribution across some other set of values.
+
+Be sure to select a variable that describes something about the
+observational unit and not another categorical variable in your dataset.
+For instance, let's say you had the following data table - with each row
+reporting an environmental violation at a facility:
+
+Violation Number \| Facility Name \| Facility Town \| Population of
+Facility Town \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ \|
+\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ \| \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
+\| \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ 1234567 \| Facility A \| Tarrytown
+\| 90000 2345678 \| Facility B \| Tarrytown \| 90000 3456789 \| Facility
+C \| Another Town \| 70000
+
+In this table, we would not want to create a histogram with population
+of facility town: the observational unit is a violation, not a town, and
+population does not describe something about the violation but instead
+describes something about the town the facility is in. If we were to
+create a histogram with this variable, we would be counting the number
+of times each population value appears in the dataset - something that
+does not make much sense, since we can have the same town's population
+appear several times in the dataset if there are multiple violations or
+multiple facilities in a town.
+
+If you have multi-dimensional data, be sure to first zoom into a set of
+observations in your data (using `filter()`).
+
+```{r}
+
+# Template:
+# DATASET %>% 
+#   filter(DISTINGUISHING_VARIABLE == "DISTINGUISHING_VALUE") %>%        # if needed for multidimensional data
+#   ggplot(aes(x = NUMERIC_VARIABLE)) + 
+#   geom_histogram(binwidth = 1, boundary = 0) + 
+#   labs(title = "Distribution of NUMERIC_VARIABLE across OBSERVATIONAL_UNIT", 
+#        x = "X-AXIS_LABEL", 
+#        y = "Y-AXIS_LABEL")
+
+
+
+```
+
+#### Pause to reflect
+
+Copy and paste the definition of the numeric variable you selected from
+the data dictionary below.
+
+> (Fill your response here.)
+
+Complete the following statement:
+
+> Each bar in the histogram above is counting the number of \_\_\_\_\_
+> in my dataset according to \_\_\_\_\_.
+
+**Query**: Below, write a research question that the code you just ran
+is designed to be able to answer. Make sure you phrase your question
+directly in relation to the results of your code. In other words, you
+have the answer; now come up with the question. Consider this a check on
+whether you understand what the code above is doing. If you are unsure
+how to compose this question, you probably want to study the functions
+above a bit more closely.
+
+Are there any other variables in your dataset that you need to take into
+consideration before directing this analysis towards answering that
+question? In other words, do you need to zoom into any specific areas of
+the dataset (by filtering) in order to appropriately address this
+question? If so, which? (For instance, for the hospitals dataset we
+needed to filter to hospitals that were OPEN in order to address
+questions about infrastructure). Briefly note this below.
+
+**Results**: Reviewing the output of your code, summarize one thing that
+you learn about your topic from running this code chunk. In other words,
+what is one thing that the results of this analysis empirically tell us
+about the topic? Be specific, considering the geographic, temporal, and
+topical scope of your data.
+
+**Discuss**: Reflect on the distribution of values. Some questions you
+might consider include: Are the values evenly distributed, or are
+certain values more represented than others? Why might this be? Do any
+of the values surprise you? Why? Check how the numeric variable was
+defined in the data dictionary, and quote the definition below. How
+might the counts represented in your frequency plot appear differently
+if this variable was defined differently?
+
+**Reflect**: Why did you select the binwidth that you did? How might the
+story your plot tells change if you were to change the binwidth? What
+anomalies might be hidden with a larger binwidth, and what trends might
+be hidden with a smaller binwidth?
+
+## Co-variation
+
+Co-variation is the extent to which the values that constitute two or
+more variables vary in relation to one another. To visualize
+co-variation, we might create scatter plots (`geom_point()` with two
+quantitative variables), point plots (`geom_point()` with one
+quantitative and one categorical variable), or count plots. When one of
+the variables is time, we call this a *time series*; this is often a
+good application for `geom_line()`.
+
+### Scatter Plots (geom_point)
+
+Easily one of the most common ways to see whether two quantitative
+variables are correlated, the scatter plot assigns x- and y- coordinates
+based on the two variables and visualizes each such paired observation
+as a point.
+
+Remember to zoom into comparable observations if you have
+multidimensional data. You're getting used to that now, right?
+
+```{r}
+## Template:
+# DATASET %>%
+#   ggplot(aes(x = NUMERIC_VARIABLE_1, 
+#              y = NUMERIC_VARIABLE_2)) + 
+#   labs(title = "Relationship between NUMERIC_VARIABLE_1 and NUMERIC_VARIABLE_2 in OBSERVATIONAL_UNIT)
+#   geom_point()
+
+
+p <-                                # optionally save it for later
+cases %>% 
+  filter(date == max_date) %>%      # Zoom in for multidimensional data
+  ggplot(aes(x = cases, 
+             y = deaths)) +
+  labs(title = paste("Relationship between COVID-19 Cases and Deaths in US Counties as of", max_date), 
+       x = "Cases", 
+       y = "Deaths")  +
+  theme_bw() +
+  geom_point(size = 2,              # Set the point size
+             alpha = 0.2) +         # Set the transparency (where 0 = invisible and 1 = completely opaque); 
+                                    # this helps mitigate *overplotting* (i.e. where multiple points overlap)
+  scale_x_continuous(labels = scales::comma) + 
+  scale_y_continuous(labels = scales::comma)
+
+
+# plot the saved ggplot object:
+p
+
+```
+
+Here we could say there is a fairly strong positive correlation between
+the number of COVID cases reported and the number of deaths: as one goes
+up, the other does, too.
+
+NB: You can add a best-fit line by adding `geom_smooth()`
+
+```{r}
+
+p + geom_smooth()
+
+```
+
+You've probably heard that correlation does not equal causation, and
+that's an important thing to bear in mind whenever you see strong
+co-variation in a dataset. It's always important to consider what
+external factors might be influencing both of the variables you're
+examining.
+
+#### Your turn
+
+Choose two quantitative variables that you're curious about the
+relationships between. Copy their definitions, from your data
+dictionary, below:
+
+Use the template to create a scatterplot of the co-variation between
+these variables, remembering to filter down to a common observational
+unit if you have multidimensional data.
+
+```{r}
+## Template:
+# DATASET %>%
+#   ggplot(aes(x = NUMERIC_VARIABLE_1, 
+#              y = NUMERIC_VARIABLE_2)) + 
+#   labs(title = "Relationship between NUMERIC_VARIABLE_1 and NUMERIC_VARIABLE_2 in OBSERVATIONAL_UNIT)
+#   geom_point()
+
+
+
+
+
+```
+
+NB: If you don't have two quantitative variables you want to compare,
+you can also use geom_point with one categorical and one quantitative
+variable; in that case, it's called a "point plot."
+
+#### Pause to reflect
+
+Look back at the code you just wrote. Can you say back what you're doing
+with that code (your *query*), what you're learning (a *result*), and
+what that might imply, or what it makes you wonder (a *discussion*)?
+
+Fill in your responses below:
+
+> **Query**:\
+> \
+> **Result**:\
+> \
+> **Discussion**:
+
+### Time series
+
+To see how a quantitative variable changes over time, map a variable in
+a date format to the x-axis, and the co-varying variable to the y-axis.
+Here, for instance, are the cumulative COVID-19 cases in Allegheny
+County. Note that, whereas before we were filtering the `cases` dataset
+by date in order to study differences across geography, we have to
+filter first by geography when we want to study differences across time.
+
+```{r}
+
+## Template
+# DATASET %>%
+#   filter(ESTABLISH_A_SHARED_LOCATION) %>%
+#   ggplot(aes(x = DATE_VARIABLE,
+#              y = QUANTITATIVE_VARIABLE)) +
+#   labs(title = "QUANTITATIVE_VARIABLE by Date in SHARED_LOCATION",
+#        x = "Date/Time",
+#        y = "QUANTITATIVE VARIABLE") + 
+#   geom_line()
+
+cases %>%
+  filter(state == "Pennsylvania" & county == "Allegheny") %>%
+  ggplot(aes(x = date,
+             y = cases)) +
+  labs(title = "COVID-19 Cases by Date in Allegheny County, PA",
+       x = "Date",
+       y = "Cumulative Case Count") +
+  geom_line() +
+  theme_bw()
+
+```
+
+To calculate differences between points, rather than the points
+themselves, dplyr provides a function to refer to adjacent rows, in
+`lag()`. Note below that you can use dplyr formulas directly within
+aes().
+
+```{r}
+
+p <-
+  cases %>%
+  filter(state == "Pennsylvania" & county == "Allegheny") %>%
+  arrange(date) %>%
+  ggplot(aes(x = date,
+             y = cases - lag(cases))) +
+  labs(title = "Newly Reported COVID-19 Cases by Date in Allegheny County, PA",
+       x = "Date",
+       y = "New Case Count") +
+  geom_line() +
+  theme_bw()
+
+p
+
+p + scale_x_date(date_breaks = "2 months",     # other options go inside layer functions
+                 date_labels = "%b %Y") + 
+  geom_line(color = "darkblue")
+
+```
+
+#### Your turn
+
+If your dataset contains dates and/or times for each observation, use
+the template below to plot a time series showing how some other variable
+changes across time. Be sure to `filter()` so that you have comparable
+units of observation for each timestamp.
+
+```{r}
+## Template
+# DATASET %>%
+#   filter(ESTABLISH_A_SHARED_LOCATION) %>%
+#   ggplot(aes(x = DATE_VARIABLE,
+#              y = QUANTITATIVE_VARIABLE)) +
+#   labs(title = "QUANTITATIVE_VARIABLE by Date in SHARED_LOCATION",
+#        x = "Date/Time",
+#        y = "QUANTITATIVE VARIABLE") + 
+#   geom_line()
+
+
+
+
+```
+
+NB: If you don't have a time variable to set this up, you can move on to
+the final section below (Faceting)
+
+#### Pause to reflect
+
+Look back at the code you just wrote. Can you say back what you're doing
+with that code (your *query*), what you're learning (a *result*), and
+what that might imply, or what it makes you wonder (a *discussion*)?
+
+Fill in your responses below:
+
+> **Query**:\
+> \
+> **Result**:\
+> \
+> **Discussion**:
+
+## Faceting (facet_wrap)
+
+*Faceting* is the process of slicing up the data into unlike units
+according to some distinguishing feature, and comparing across the
+subsets that remain. This often lets us see exceptions to general trends
+-- and, sometimes, the trends themselves, if the exceptions were causing
+too much interference. When we facet plots, we split them into a series
+of panels each representing the grouped data associated with a
+particular value -- often in a categorical variable, but sometimes based
+on quantitative or chronological bins.
+
+We can facet a plot by adding: `+ facet_wrap(~VARIABLE_NAME)` to the
+call. (The tilde might be interpreted as, "as a function of".)
+
+### by category
+
+Let's start with an easy example from our hospitals data: faceting a bar
+plot of the number of hospitals that have a helipad by state.
+
+```{r fig.height=5, fig.width=10}
+## Template:
+# DATASET %>% 
+#   ggplot(aes(COORDINATES_BASED_ON_YOUR_INTENDED_GEOM)) + 
+#          GEOM_FUNCTION + 
+#          facet_wrap(~DIVIDING_VARIABLE)
+
+# Without facet_wrap:
+hospitals_data %>% 
+  ggplot(aes(x = HELIPAD)) +
+  labs(title = "Number of Hospitals by Helipad Status", 
+       x ="Helipad (No / Yes)",            # because it's alphabetical until we say otherwise
+       y = "Count of Hospitals") + 
+  geom_bar() +
+  theme_bw()
+
+# with facet_wrap by state:
+hospitals_data %>% 
+  ggplot(aes(x = HELIPAD)) + 
+  labs(title = "Number of Hospitals by Helipad Status", 
+       x ="Helipad (No / Yes)", 
+       y = "Count of Hospitals" ) +
+  geom_bar() +
+  facet_wrap(~STATE) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust=1, size = 6), 
+        axis.text.y = element_text(size = 6),
+        strip.text = element_text(size = 6)) 
+  
+```
+
+The first plot suggests that more hospitals have helipads than those
+that don't. Grouping this by state, however, we can see that in some
+states (like California and New York), more hospitals don't have
+helipads than those that do. Faceting can help us zoom into the data for
+more geographic specificity.
+
+### by date
+
+Let's also facet data by a temporal variable. Assuming we have already
+converted a date/time variable in our dataset into a date/time format
+(using lubridate, if need be), we should be able to extract a year,
+month, day (and if available hour, minute, and second) from the data
+using these lubridate functions:
+
+-   year(DATE_VARIABLE) will extract the year from the date
+-   month(DATE_VARIABLE) will extract the month from the date
+-   day(DATE_VARIABLE) will extract the day from the date
+-   ... and so on
+
+```{r fig.height=5, fig.width=10}
+#without facet_wrap()
+hospitals_data %>% 
+  ggplot(aes(x = STATUS)) +
+  labs(title = "Number of Hospitals by Status", 
+       x ="Status", 
+       y = "Count of Hospitals" ) + 
+  geom_bar() +
+  theme_bw()
+
+#with facet_wrap()
+hospitals_data %>% 
+  ggplot(aes(x = STATUS)) +
+  labs(title = "Number of Hospitals by Status", 
+       x ="Status", 
+       y = "Count of Hospitals" ) + 
+  geom_bar() +
+  facet_wrap(~year(SOURCEDATE)) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust=1, size = 6), 
+        axis.text.y = element_text(size = 6),
+        strip.text = element_text(size = 6)) 
+```
+
+Faceting this plot by the year in which the data was sourced helps put
+the STATUS field into context. We can see that the vast majority of the
+data represented in the plot was sourced in 2018. We know that hospitals
+across the country are not open or closed in perpetuity, so we need to
+take the temporal context of the data into consideration when presenting
+our results.
+
+### by derived subsets
+
+If we have qualified observational units in our dataset, faceting allows
+us to group data by one of the qualifying variables and display the data
+as a set of side-by-side plots. Let's repeat the stacked bar plot from
+earlier, this time separating out each of the ownership categories to
+see who owns what types of hospitals.
+
+```{r}
+
+# Without facets
+hospitals_data %>%
+  ggplot(aes(x = TYPE)) + 
+  labs(title = "Number of Hospitals in the US by Type", 
+       x = "Type", 
+       y = "Count of Hospitals") + 
+  geom_bar() + 
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust=1)) 
+
+# With facets
+hospitals_data %>%
+  ggplot(aes(x = TYPE)) +
+  labs(title = "Number of Hospitals in the US by Type and Owner", 
+       x = "Type", 
+       y = "Count of Hospitals") +
+  facet_wrap(~OWNER) +
+  geom_bar() + 
+  theme_bw() + 
+  coord_flip()
+```
+
+The great majority of non-profit hospitals are General Acute Care, and
+vice versa. While the most frequenty type for Proprietary-owned
+hospitals is also General Acute Cate, there seem to be more Psychiatric
+hospitals under Proprietary ownership than any other ownership model. To
+check that, we could reverse the coordinate-mapping under aes():
+
+```{r}
+# With facets
+hospitals_data %>%
+  ggplot(aes(x = OWNER)) +
+  labs(title = "Number of Hospitals in the US by Owner and Type", 
+       x = "Type", 
+       y = "Count of Hospitals") +
+  facet_wrap(~TYPE) +
+  geom_bar() + 
+  theme_bw() + 
+  coord_flip()
+```
+
+#### Your turn
+
+Choose one variable on which to facet (group) the rest of your
+observations, and at least one variable that you suspect might be
+different for those different categories.
+
+Write down the definitions of the variables here:
+
+Why do you think the latter variable might have different values for the
+different groups?
+
+Use the template below to build a faceted graph on the grouping variable
+you've chosen. You may choose any geometry you're interested in:
+geom_bar() for frequency plots, geom_col() for bar charts of other
+values, geom_line() for time series, etc.
+
+```{r}
+## Template:
+# DATASET %>% 
+#   ggplot(aes(COORDINATES_BASED_ON_YOUR_INTENDED_GEOM)) + 
+#          GEOM_FUNCTION + 
+#          facet_wrap(~DIVIDING_VARIABLE)
+
+
+
+
+
+```
+
+#### Pause to reflect
+
+Look back at the code you just wrote. Can you say back what you're doing
+with that code (your *query*), what you're learning (a *result*), and
+what that might imply, or what it makes you wonder (a *discussion*)?
+
+Fill in your responses below:
+
+> **Query**:\
+> \
+> **Result**:\
+> \
+> **Discussion**:
+
+## There's always more
+
+Remember that this was just an introduction: there's loads more that
+ggplot can do. Have a look at these ["top 50
+visualizations"](http://r-statistics.co/Top50-Ggplot2-Visualizations-MasterList-R-Code.html),
+from the tutorial I linked to at the start of this lab, for a glimpse of
+what's possible. It comes with code, so if you see a chart type you want
+to emulate, you can try to adapt it to your own data!

@@ -1,14 +1,14 @@
 ---
 title: "Lab 4 - Data Cleaning and Exploration"
 output:
-  html_notebook:
-    toc: yes
-    toc_depth: 3
-    toc_float: yes
   html_document:
     df_print: paged
     toc: yes
     toc_depth: '3'
+  html_notebook:
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
 editor_options:
   chunk_output_type: inline
 ben_notes: "Consider splitting this into more than one lab, some in class and some at home; consider also saving a fast version that just loads and cleans the dataset without need for interaction"
@@ -49,27 +49,35 @@ For our example datasets:
 * The Department of Homeland Security has made the [hospitals dataset](https://hifld-geoplatform.opendata.arcgis.com/datasets/geoplatform::hospitals/about) available for download on the HIFLD site.
 * The Center for Medicaid and Medicare Services has made the [In-Patient Medicare Provider Utilization and Payment (IPPS)](https://www.cms.gov/research-statistics-data-systems/medicare-provider-utilization-and-payment-data/medicare-provider-utilization-and-payment-data-inpatient/inpatient-charge-data-fy-2018) data available for download on their open data portal, run by Socrata.
 
-We'll import these datasets into RStudio by locating the data "endpoint" on each site: essentially, the downloadable data itself, rather than a visualization or summary that many open data sources will show you first. Depending on the format each site provides, we'll be reading these files in as a CSV, using the function **read.csv("[URL_OR_PATH_TO_DATE_FILE]")** (part of base R) or as a JSON object, using the function **fromJSON("[URL_OR_PATH_TO_DATE_FILE]")** (from the package 'jsonlite'). When we read the data file into R, it will import as a data frame (reference lab 1 if you do not know what a data frame is). We will store that data frame in a variable using `<-` so that we can reference the dataset throughout the lab.
+We'll import these datasets into RStudio by locating the data "endpoint" on each site: essentially, the downloadable data itself, rather than a visualization or summary that many open data sources will show you first. Depending on the format each site provides, we'll be reading these files in as a CSV, using the function **read_csv("[URL_OR_PATH_TO_DATE_FILE]")** (from the tidyverse library 'readr') or as a JSON object, using the function **fromJSON("[URL_OR_PATH_TO_DATE_FILE]")** (from the package 'jsonlite'). When we read the data file into R, it will import as a data frame (see lab 2 if you do not remember what a data frame is). We will store that data frame in a variable using `<-` so that we can reference the dataset throughout the lab.
 
 Run the code chunks below to import the example datasets. Go one line at a time to see how it works -- and if R doesn't show anything, e.g. for `head()`, try copying and pasting that line into the console. 
 
 ```{r}
 
 ##### Set 1: NY Times COVID-19 cases
-cases <- read.csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv", stringsAsFactors = FALSE)
-str(cases)
-head(cases)
+cases <- read_csv("https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv")
 
-# Pretty straightforward! If you want to know what stringsAsFactors means, see https://simplystatistics.org/2015/07/24/stringsasfactors-an-unauthorized-biography/. The default value changed from TRUE to FALSE with R 4.0.0 in April 2020, but there's no harm in being explicit.
+# str() gives us an overview of the structure of the dataset, including the number of observations, the variable names, and each variable's type. 
+str(cases)
+
+# head() shows the first 6 lines, by default, but also allows you to change the number shown
+head(cases, 10)
 ```
+
+Pretty straightforward! <!-- If you want to know what stringsAsFactors means, see this [explainer post](https://simplystatistics.org/2015/07/24/stringsasfactors-an-unauthorized-biography/). The default value changed from TRUE to FALSE with R 4.0.0 in April 2020, but there's no harm in being explicit. -->
+
 
 ```{r}
 ##### Set 2: hospitals
 hospitals <- fromJSON("https://services1.arcgis.com/Hp6G80Pky0om7QvQ/arcgis/rest/services/Hospitals_1/FeatureServer/0/query?where=1%3D1&outFields=*&outSR=4326&f=json")
 str(hospitals)
+```
 
-# Using str() to find the structure of the values received, we can see that `hospitals` is a list that includes both metadata and 'features' (the info on specific hospitals). We can use $ notation to extract the parts we need, or bind them to a convenience variable.
+Using `str()` to find the structure of the values received, we can see that `hospitals` is a list that includes both metadata and 'features' (the info on specific hospitals). We can use `$` notation to extract the parts we need, or bind them to a convenience variable.
 
+
+```{r}
 hospitals_data <- hospitals$features$attributes
 head(hospitals_data)
 ```
@@ -78,10 +86,11 @@ head(hospitals_data)
 ##### Set 3: IPPS
 ipps <- fromJSON("https://data.cms.gov/data-api/v1/dataset/3b383d0c-44a0-4036-af82-bbf3e40279a2/data")
 str(ipps) # 1000 observations
+```
 
+Here the value received is data, but it stops at 1000 rows. From Socrata, we know there are more (a lot more: 193,003 as of this writing), so we'll need to modify the query. From the link above, I clicked on "Access API", then "API Docs for the Dataset", which let me "Try the API" -- and thus discover the extra parameters available for size (number of rows) and offset (so you can get new rows, a bit at a time). You do have to already know the query syntax: a question mark to start, then an ampersand before each parameter=value pair.
 
-# Here the value received is data, but it stops at 1000 rows. From Socrata, we know there are more (a lot more: 193,003 as of this writing), so we'll need to modify the query. From the link above, I clicked on "Access API", then "API Docs for the Dataset", which let me "Try the API" -- and thus discover the extra parameters available for size (number of rows) and offset (so you can get new rows, a bit at a time). You do have to already know the query syntax: a question mark to start, then an ampersand before each parameter=value pair.
-
+```{r}
 max_data <- 193003              # the actual maximum number of rows
 max_chunk <- 5000               # how many rows it'll let us take at a time
 skip_sequence <- seq(max_chunk, max_data, max_chunk)  
@@ -96,7 +105,7 @@ str(ipps) # 193003 observations
 
 ```
 
-
+### Your turn
 Based on the structure of your data (JSON or CSV), uncomment the appropriate line below and replace df with a variable name that describes your dataset and [URL_OR_PATH_TO_DATA_FILE] with the URL to your dataset or the local path to your dataset. *Be sure to remove the brackets but to keep the quotation marks.* Then run the chunk to store your data in the variable.
 
 ```{r}
@@ -111,15 +120,7 @@ Based on the structure of your data (JSON or CSV), uncomment the appropriate lin
 
 ### What is the structure of your dataset?
 
-**str()** gives us an overview of the structure of the dataset, including the number of observations, the variable names, and each variable's type.  For instance, check out how we would run str() on the hospitals dataset by running the code chunk below.
-
-```{r}
-#Run this code chunk to see the structure of hospitals.
-
-str(hospitals_data)
-```
-
-Run this function for your own dataset. 
+Remember from above that **`str()`** gives us an overview of the structure of the dataset, including the number of observations, the variable names, and each variable's type. Run this function for your own dataset. 
 
 ```{r}
 #Uncomment the line below by removing the '#' in front of the line and replace df with your own variable. Then run the code chunk to check out the structure. 
@@ -633,9 +634,9 @@ paste("I have", nrow(ipps), "unique diagnosis categories for a given provider re
 ```
 
 #### Case 3: Case counts
-In the COVID-19 cases dataset, the unique ID is also more complicated. cases counts are listed for each county in each state, each day since January 21, 2020, and some states have counties with the same name. Because of this we will need to reference the state, county code, and the date reporting to uniquely identify each row. 
+In the COVID-19 cases dataset, the unique ID is also more complicated. cases counts are listed for each county in each state, each day since January 21, 2020, and some states have counties with the same name. Because of this we will need to reference the state, county code, and the date reporting to uniquely identify each row. This is, in other words, a *three-dimensional dataset*.
 
-> You may be wondering why we are not using the fips code to uniquely identify each state/county. The reason for this is that, for some reports, the county is unknown, and the fips code value is NA. In this case, the fips code will be reported for multiple counties as NA *on the same day*.
+> You may be wondering why we are not using the fips code to uniquely identify each state/county. The reason for this is that, for some reports, the county is unknown, and the fips code value is NA. In this case, the fips code will be reported for multiple counties as NA on the same day, making them indistinguishable by that means.
 
 See below:
 
